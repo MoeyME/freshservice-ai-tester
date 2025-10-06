@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -u \"JqlESBX5C49Idjknge:X\" \"https://dahlsens-servicedesk.freshservice.com/api/v2/tickets/18104\")",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "claude.autoApprove": {
+    "bash": true,
+    "fileOperations": true,
+    "webSearch": true,
+    "webFetch": true,
+    "editor": true
+  }
+}

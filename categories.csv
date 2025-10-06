@@ -1,0 +1,274 @@
+Category ,Sub-Category,Item
+Application Support,Frameworks,Support
+Application Support,Frameworks,Development Request
+Application Support,Frameworks,Customer Credits/Refunds
+Application Support,Frameworks,Customer Management
+Application Support,Frameworks,Customer Payment Allocation
+Application Support,Frameworks,Customer Price Management
+Application Support,Frameworks,Finance (General Ledger)
+Application Support,Frameworks,Finance (Other)
+Application Support,Frameworks,Picking Process
+Application Support,Frameworks,Point Of Sale
+Application Support,Frameworks,Point Of Sale - Eftpos
+Application Support,Frameworks,Printing Issue
+Application Support,Frameworks,Product Management
+Application Support,Frameworks,Product Stock Management
+Application Support,Frameworks,Production/TAF Processing
+Application Support,Frameworks,Purchasing/Receipting
+Application Support,Frameworks,Reporting Request
+Application Support,Frameworks,Rewards Programs
+Application Support,Frameworks,Sales Orders/Quotes
+Application Support,Frameworks,Supplier Credit Claims
+Application Support,Frameworks,Supplier EDI
+Application Support,Frameworks,Supplier Invoice Processing
+Application Support,Frameworks,Supplier Management
+Application Support,Frameworks,System Config/Setup
+Application Support,Frameworks,Till Reconciliation/Banking
+Application Support,Frameworks,Training Request
+Application Support,Frameworks,Transport Scheduling
+Application Support,Frameworks,User Admin
+Application Support,Frameworks,Other (only use if the item is missing)
+Application Support,Prostix,Support
+Application Support,Prostix,Other (only use if the item is missing)
+Application Support,Salesforce,Support
+Application Support,Salesforce,Enhancement
+Application Support,Salesforce,Development Request
+Application Support,Salesforce,Feedback
+Application Support,Salesforce,Other (only use if the item is missing)
+Application Support,Integrations,Configuration
+Application Support,Integrations,Testing
+Application Support,Integrations,Error Handling & Logging
+Application Support,Integrations,Other (only use if the item is missing)
+Application Support,Integrations,Access Control
+Application Support,Nuvu,New Reporting
+Application Support,Nuvu,Report Management
+Application Support,Nuvu,Troubleshooting
+Application Support,Nuvu,Other (only use if the item is missing)
+Application Support,Freshservice,Outage Notification
+Application Support,Freshservice,Error
+Application Support,Freshservice,Testing
+Application Support,Freshservice,Configuration
+Application Support,Freshservice,Workflow
+Application Support,Freshservice,Documentation
+Application Support,Freshservice,Forms
+Application Support,Freshservice,Other (only use if the item is missing)
+Application Support,Phocas,New Reporting
+Application Support,Phocas,Development Request
+Application Support,Phocas,Report/Data Management
+Application Support,Phocas,Troubleshooting
+Application Support,Phocas,New User
+Application Support,Phocas,Other (only use if the item is missing)
+Application Support,Netfira,
+Application Support,D-Track,
+Application Support,Supported Apps/Sites,Corporate Traveller
+Application Support,Supported Apps/Sites,Ready Workforce
+Application Support,Supported Apps/Sites,Red Seed
+Application Support,Supported Apps/Sites,Our Toolbox
+Application Support,Supported Apps/Sites,Other
+Application Support,Builder Connect,Support
+Application Support,Builder Connect,Sync Issue
+Application Support,Builder Connect,Development Request
+Application Support,Builder Connect,Bug
+Application Support,Inventory,Frameworks Requisitions
+Application Support,Inventory,Stock Non-negotiables
+Application Support,Inventory,Stock Adjustments
+Application Support,Inventory,Product Minimum Adjustments
+Application Support,Inventory,1%ers - Light Bulb
+Application Support,Inventory,Other
+Application Support,Logistics,External Transport Contractors
+Application Support,Logistics,DBC Transport
+Application Support,Logistics,Freight In
+Application Support,Logistics,Goods Out
+Application Support,Logistics,1%ers - Light Bulb
+Application Support,Logistics,Other
+Software,Teams,
+Software,Outlook,
+Software,Word,
+Software,Excel,
+Software,Microsoft 365,Licence Management
+Software,Microsoft 365,License Issue
+Software,Microsoft 365,Exchange Online
+Software,Microsoft 365,Install
+Software,Microsoft 365 Copilot,
+Software,PowerPoint,
+Software,OneDrive,
+Software,Visio,
+Software,Power BI,
+Software,Adobe,
+Software,Google,
+Software,Pryda,
+Software,Production Manager,
+Software,Nuvu,
+Software,Snagit,
+Software,WindowsOS,
+Software,Zoho,
+Software,Corporate Traveller,
+Software,M-Files,
+Software,Eloqua,
+Software,High Radius,
+Software,Other (only use if the item is missing),
+Software,Multi-factor Authentication,
+Software,Crowdstrike,
+Software,PDF,
+Software,Workato,
+Infrastructure,Server Management,OS
+Infrastructure,Server Management,Licensing
+Infrastructure,Server Management,Application
+Infrastructure,Server Management,Migration
+Infrastructure,Server Management,Other (only use if the item is missing)
+Infrastructure,Cloud Services,Compute
+Infrastructure,Cloud Services,Logic Apps
+Infrastructure,Cloud Services,Integrations
+Infrastructure,Cloud Services,Web Services
+Infrastructure,Cloud Services,Reporting
+Infrastructure,Cloud Services,Troubleshooting
+Infrastructure,Cloud Services,DNS
+Infrastructure,Backup and Recovery,Restoration
+Infrastructure,Backup and Recovery,Backup
+Infrastructure,Backup and Recovery,Reporting
+Infrastructure,Backup and Recovery,"Other (don’t use, unless the item is missing)"
+Infrastructure,VPN,VPN Request
+Infrastructure,VPN,Troubleshooting
+Infrastructure,VPN,Other (only use if the item is missing)
+Infrastructure,LAN/WAN/Internet/Wi-Fi,Equipment Request
+Infrastructure,LAN/WAN/Internet/Wi-Fi,Troubleshooting
+Infrastructure,LAN/WAN/Internet/Wi-Fi,Configuration
+Infrastructure,LAN/WAN/Internet/Wi-Fi,Other (only use if the item is missing)
+Infrastructure,Firewall Management,Maintenance
+Infrastructure,Firewall Management,Configuration
+Infrastructure,Firewall Management,Other (only use if the item is missing)
+Infrastructure,Firewall Management,Troubleshooting
+Infrastructure,Voice & Meeting Rooms,Equipment Request
+Infrastructure,Voice & Meeting Rooms,Troubleshooting
+Infrastructure,Voice & Meeting Rooms,Configuration
+Infrastructure,Voice & Meeting Rooms,Voice Quality
+Infrastructure,Voice & Meeting Rooms,Camera Quality
+Infrastructure,Voice & Meeting Rooms,Hardware Issue
+Infrastructure,Voice & Meeting Rooms,Other (only use if the item is missing)
+Security,Office 365 Security,Account and Authentication Issues
+Security,Office 365 Security,Security Assessment
+Security,Office 365 Security,Email Security
+Security,Office 365 Security,Permissions and Access Control
+Security,Office 365 Security,Other (only use if the item is missing)
+Security,Network Security,Firewall Configuration
+Security,Network Security,Security Assessment
+Security,Network Security,VPN Issues
+Security,Network Security,Intrusion Detection and Prevention
+Security,Network Security,Other (only use if the item is missing)
+Security,Endpoint Security,Antivirus Alerts and Updates
+Security,Endpoint Security,Security Assessment
+Security,Endpoint Security,Malware and Ransomware Response
+Security,Endpoint Security,Device Encryption
+Security,Endpoint Security,Netskope
+Security,Incident Response,Security Breach Reporting
+Security,Incident Response,Security Assessment
+Security,Incident Response,Phishing Detection and Response
+Security,Incident Response,Suspicious Activity Monitoring
+Security,Incident Response,Other (only use if the item is missing)
+Security,Identity Management,User Identity Verification
+Security,Identity Management,Security Assessment
+Security,Identity Management,Single Sign-On (SSO) Integration
+Security,Identity Management,Identity Provider Configuration
+Security,Identity Management,Other (only use if the item is missing)
+Security,Compliance and Audit,Regulatory Compliance Queries
+Security,Compliance and Audit,Security Assessment
+Security,Compliance and Audit,Audit Trail Reviews
+Security,Compliance and Audit,Policy Enforcement Issues
+Security,Compliance and Audit,Other (only use if the item is missing)
+Hardware,Hardware Maintenance,Desktop
+Hardware,Hardware Maintenance,Laptop
+Hardware,Hardware Maintenance,Printer
+Hardware,Hardware Maintenance,Scanner
+Hardware,Hardware Maintenance,Desk Phone
+Hardware,Hardware Maintenance,Eftpos
+Hardware,Hardware Maintenance,PDA Device
+Hardware,Hardware Maintenance,Label Printer
+Hardware,Hardware Maintenance,Networking Equipment
+Hardware,Hardware Maintenance,Peripherals
+Hardware,Hardware Maintenance,Mobile Devices
+Hardware,Hardware Maintenance,Audio & Video Equipment
+Hardware,Hardware Maintenance,Tablets
+Hardware,Hardware Maintenance,Site Visit
+Hardware,Hardware Maintenance,Other (only use if the item is missing)
+Hardware,Hardware Procurement,Desktop
+Hardware,Hardware Procurement,Laptop
+Hardware,Hardware Procurement,Printer
+Hardware,Hardware Procurement,Scanner
+Hardware,Hardware Procurement,Desk Phone
+Hardware,Hardware Procurement,Eftpos
+Hardware,Hardware Procurement,PDA Device
+Hardware,Hardware Procurement,Label Printer
+Hardware,Hardware Procurement,Networking Equipment
+Hardware,Hardware Procurement,Peripherals
+Hardware,Hardware Procurement,Mobile Devices
+Hardware,Hardware Procurement,Audio & Video Equipment
+Hardware,Hardware Procurement,Tablets
+Hardware,Hardware Procurement,Site Visit
+Hardware,Hardware Procurement,Other (only use if the item is missing)
+Hardware,Hardware Troubleshooting,Desktop
+Hardware,Hardware Troubleshooting,Laptop
+Hardware,Hardware Troubleshooting,Printer
+Hardware,Hardware Troubleshooting,Scanner
+Hardware,Hardware Troubleshooting,Desk Phone
+Hardware,Hardware Troubleshooting,Eftpos
+Hardware,Hardware Troubleshooting,PDA Device
+Hardware,Hardware Troubleshooting,Label Printer
+Hardware,Hardware Troubleshooting,Networking Equipment
+Hardware,Hardware Troubleshooting,Peripherals
+Hardware,Hardware Troubleshooting,Mobile Devices
+Hardware,Hardware Troubleshooting,Audio & Video Equipment
+Hardware,Hardware Troubleshooting,Tablets
+Hardware,Hardware Troubleshooting,Site Visit
+Hardware,Hardware Troubleshooting,Other (only use if the item is missing)
+Hardware,Hardware Repair,Desktop
+Hardware,Hardware Repair,Laptop
+Hardware,Hardware Repair,Printer
+Hardware,Hardware Repair,Scanner
+Hardware,Hardware Repair,Desk Phone
+Hardware,Hardware Repair,Eftpos
+Hardware,Hardware Repair,PDA Device
+Hardware,Hardware Repair,Label Printer
+Hardware,Hardware Repair,Networking Equipment
+Hardware,Hardware Repair,Peripherals
+Hardware,Hardware Repair,Mobile Devices
+Hardware,Hardware Repair,Audio & Video Equipment
+Hardware,Hardware Repair,Tablets
+Hardware,Hardware Repair,Site Visit
+Hardware,Hardware Repair,Other (only use if the item is missing)
+Hardware,Hardware Upgrade,Desktop
+Hardware,Hardware Upgrade,Laptop
+Hardware,Hardware Upgrade,Printer
+Hardware,Hardware Upgrade,Scanner
+Hardware,Hardware Upgrade,Desk Phone
+Hardware,Hardware Upgrade,Eftpos
+Hardware,Hardware Upgrade,PDA Device
+Hardware,Hardware Upgrade,Label Printer
+Hardware,Hardware Upgrade,Networking Equipment
+Hardware,Hardware Upgrade,Peripherals
+Hardware,Hardware Upgrade,Mobile Devices
+Hardware,Hardware Upgrade,Audio & Video Equipment
+Hardware,Hardware Upgrade,Tablets
+Hardware,Hardware Upgrade,Site Visit
+Hardware,Hardware Upgrade,Other (only use if the item is missing)
+Hardware,Hardware Disposal,Desktop
+Hardware,Hardware Disposal,Laptop
+Hardware,Hardware Disposal,Printer
+Hardware,Hardware Disposal,Scanner
+Hardware,Hardware Disposal,Desk Phone
+Hardware,Hardware Disposal,Eftpos
+Hardware,Hardware Disposal,PDA Device
+Hardware,Hardware Disposal,Label Printer
+Hardware,Hardware Disposal,Networking Equipment
+Hardware,Hardware Disposal,Peripherals
+Hardware,Hardware Disposal,Mobile Devices
+Hardware,Hardware Disposal,Audio & Video Equipment
+Hardware,Hardware Disposal,Tablets
+Hardware,Hardware Disposal,Site Visit
+Hardware,Hardware Disposal,Other (only use if the item is missing)
+User Administration,Password Resets,
+User Administration,Permissions & Access Rights,
+User Administration,Onboarding,
+User Administration,Offboarding,
+User Administration,User Change Management,
+User Administration,User Communication,
+User Administration,Other (only use if the item is missing),
