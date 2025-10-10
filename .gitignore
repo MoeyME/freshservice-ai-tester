@@ -8,6 +8,9 @@
 .session_cache.json
 ticket_counter.json
 
+# Claude settings (contains API tokens)
+.claude/settings.local.json
+
 # Log files
 logs/
 *.log

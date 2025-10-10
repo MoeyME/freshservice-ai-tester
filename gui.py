@@ -29,8 +29,8 @@ from verification_logger import VerificationLogger
 
 
 class TicketGeneratorGUI:
-    # Modern color scheme with gradients
-    COLORS = {
+    # Light theme color scheme
+    COLORS_LIGHT = {
         'primary': '#6366F1',      # Modern Indigo
         'primary_dark': '#4F46E5',
         'primary_light': '#818CF8',
@@ -50,10 +50,36 @@ class TicketGeneratorGUI:
         'gradient_end': '#8B5CF6'
     }
 
+    # Dark theme color scheme
+    COLORS_DARK = {
+        'primary': '#818CF8',      # Lighter Indigo for dark mode
+        'primary_dark': '#6366F1',
+        'primary_light': '#A5B4FC',
+        'success': '#34D399',      # Lighter Green
+        'success_light': '#6EE7B7',
+        'error': '#F87171',        # Lighter Red
+        'warning': '#FBBF24',      # Lighter Amber
+        'background': '#1F2937',   # Dark gray background
+        'surface': '#111827',      # Darker surface
+        'text_primary': '#F9FAFB',
+        'text_secondary': '#D1D5DB',
+        'border': '#374151',
+        'shadow_light': '#0F172A',  # Dark shadow
+        'shadow_medium': '#1E293B',  # Medium dark shadow
+        'accent': '#A78BFA',       # Lighter Purple accent
+        'gradient_start': '#818CF8',
+        'gradient_end': '#A78BFA'
+    }
+
+    COLORS = COLORS_LIGHT.copy()  # Default to light mode
+
     def __init__(self, root):
         self.root = root
         self.root.title("IT Ticket Email Generator • Modern Interface")
         self.root.geometry("1250x920")
+
+        # Dark mode state
+        self.dark_mode = tk.BooleanVar(value=False)
 
         # Center window on screen
         self.root.update_idletasks()
@@ -76,6 +102,8 @@ class TicketGeneratorGUI:
         self.claude_api_key = tk.StringVar()
         self.num_emails = tk.IntVar(value=5)
         self.writing_quality = tk.StringVar(value="basic")
+        self.custom_instructions = tk.StringVar()
+        self.use_custom_instructions = tk.BooleanVar(value=False)
 
         # Freshservice variables
         self.fs_domain = tk.StringVar()
@@ -94,6 +122,7 @@ class TicketGeneratorGUI:
         self.ticket_counter = TicketCounter()
         self.fs_client = None
         self.fs_connected = False
+        self.is_shutting_down = False  # Flag to prevent thread errors during shutdown
 
         # Session file path
         self.session_file = os.path.join(os.getcwd(), ".session_cache.json")
@@ -215,6 +244,88 @@ class TicketGeneratorGUI:
                        borderwidth=0,
                        thickness=24)
 
+    def toggle_theme(self):
+        """Toggle between light and dark mode."""
+        self.dark_mode.set(not self.dark_mode.get())
+
+        # Update COLORS dictionary
+        if self.dark_mode.get():
+            self.COLORS = self.COLORS_DARK.copy()
+            self.theme_button.config(text="☀️ Light Mode")
+        else:
+            self.COLORS = self.COLORS_LIGHT.copy()
+            self.theme_button.config(text="🌙 Dark Mode")
+
+        # Reconfigure all styles
+        self.configure_styles()
+
+        # Force update all widgets recursively
+        self._update_widget_colors(self.root)
+
+        # Update main canvas background
+        if hasattr(self, 'main_canvas'):
+            self.main_canvas.configure(bg=self.COLORS['background'])
+
+    def _update_widget_colors(self, widget):
+        """Recursively update widget colors for theme change."""
+        try:
+            widget_class = widget.winfo_class()
+
+            # Update Frame backgrounds
+            if widget_class == 'Frame':
+                current_bg = widget.cget('bg')
+                # Update if it's a themed color
+                if current_bg in self.COLORS_LIGHT.values() or current_bg in self.COLORS_DARK.values():
+                    # Map old color to new color key
+                    for key, value in (self.COLORS_DARK if not self.dark_mode.get() else self.COLORS_LIGHT).items():
+                        if current_bg == value:
+                            widget.configure(bg=self.COLORS[key])
+                            break
+
+            # Update Text and ScrolledText widgets
+            elif widget_class in ['Text', 'ScrolledText']:
+                widget.configure(
+                    bg=self.COLORS['surface'] if str(widget.cget('bg')) in ['white', '#FFFFFF', '#111827'] else '#F9FAFB' if not self.dark_mode.get() else '#1E293B',
+                    fg=self.COLORS['text_primary']
+                )
+
+            # Update Listbox widgets
+            elif widget_class == 'Listbox':
+                widget.configure(
+                    bg='white' if not self.dark_mode.get() else '#1E293B',
+                    fg=self.COLORS['text_primary']
+                )
+
+            # Update Canvas widgets
+            elif widget_class == 'Canvas':
+                widget.configure(bg=self.COLORS['background'])
+
+            # Update Label widgets
+            elif widget_class == 'Label':
+                current_bg = widget.cget('bg')
+                current_fg = widget.cget('fg')
+
+                # Update backgrounds
+                if current_bg in self.COLORS_LIGHT.values() or current_bg in self.COLORS_DARK.values():
+                    for key, value in (self.COLORS_DARK if not self.dark_mode.get() else self.COLORS_LIGHT).items():
+                        if current_bg == value:
+                            widget.configure(bg=self.COLORS[key])
+                            break
+
+                # Update foregrounds
+                if current_fg in self.COLORS_LIGHT.values() or current_fg in self.COLORS_DARK.values():
+                    for key, value in (self.COLORS_DARK if not self.dark_mode.get() else self.COLORS_LIGHT).items():
+                        if current_fg == value:
+                            widget.configure(fg=self.COLORS[key])
+                            break
+
+            # Recursively update children
+            for child in widget.winfo_children():
+                self._update_widget_colors(child)
+
+        except Exception:
+            pass  # Skip widgets that don't support these options
+
     def create_card_with_shadow(self, parent, **kwargs):
         """Create a card frame with shadow effect."""
         # Shadow frame (slightly larger and offset)
@@ -312,7 +423,7 @@ class TicketGeneratorGUI:
         header_content.pack(fill=tk.BOTH, expand=True)
         header_content.columnconfigure(0, weight=1)
 
-        # Title with icon and refresh button
+        # Title with icon and buttons
         title_frame = ttk.Frame(header_content, style='Card.TFrame')
         title_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
         title_frame.columnconfigure(0, weight=1)
@@ -321,7 +432,13 @@ class TicketGeneratorGUI:
                                style='Title.TLabel')
         title_label.pack(side=tk.LEFT)
 
-        # Refresh button on the right
+        # Dark mode toggle button
+        self.theme_button = ttk.Button(title_frame, text="🌙 Dark Mode",
+                                      command=self.toggle_theme,
+                                      style='Primary.TButton')
+        self.theme_button.pack(side=tk.RIGHT, padx=(10, 0))
+
+        # Refresh button
         refresh_button = ttk.Button(title_frame, text="🔄 Reload Config",
                                    command=self.reload_modules,
                                    style='Primary.TButton')
@@ -529,6 +646,45 @@ class TicketGeneratorGUI:
                        value="polished", style='Card.TRadiobutton').pack(side=tk.LEFT)
         gen_row += 1
 
+        # Custom Instructions Section
+        ttk.Label(gen_card, text="Custom AI Instructions:", style='Card.TLabel').grid(row=gen_row, column=0,
+                                                                                      sticky=(tk.W, tk.N), pady=12, padx=(0, 15))
+
+        custom_container = ttk.Frame(gen_card, style='Card.TFrame')
+        custom_container.grid(row=gen_row, column=1, sticky=(tk.W, tk.E), pady=12)
+
+        # Checkbox to enable custom instructions
+        self.custom_checkbox = ttk.Checkbutton(custom_container,
+                                              text="Override category-based generation with custom instructions",
+                                              variable=self.use_custom_instructions,
+                                              style='Card.TRadiobutton')
+        self.custom_checkbox.pack(anchor=tk.W, pady=(0, 8))
+
+        # Text area for custom instructions
+        custom_text_container = tk.Frame(custom_container,
+                                        bg='#F9FAFB',
+                                        highlightthickness=1,
+                                        highlightbackground=self.COLORS['border'])
+        custom_text_container.pack(fill=tk.BOTH, expand=True)
+
+        self.custom_text = scrolledtext.ScrolledText(custom_text_container,
+                                                     height=4,
+                                                     wrap=tk.WORD,
+                                                     font=('Segoe UI', 9),
+                                                     bg='#F9FAFB',
+                                                     relief='flat',
+                                                     borderwidth=0)
+        self.custom_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.custom_text.insert('1.0', 'Example: Generate tickets about printer issues where users are frustrated because printing is urgent for customer quotes...')
+        self.custom_text.bind('<FocusIn>', lambda e: self.custom_text.delete('1.0', tk.END) if self.custom_text.get('1.0', tk.END).strip().startswith('Example:') else None)
+
+        # Info label
+        custom_info = ttk.Label(custom_container,
+                               text="When enabled, AI will generate tickets based on your instructions instead of using categories",
+                               style='Info.TLabel')
+        custom_info.pack(anchor=tk.W, pady=(5, 0))
+        gen_row += 1
+
         # Generate Button
         button_frame = ttk.Frame(gen_card, style='Card.TFrame')
         button_frame.grid(row=gen_row, column=0, columnspan=2, pady=(15, 0))
@@ -651,35 +807,86 @@ class TicketGeneratorGUI:
 
     def log(self, message, level="info"):
         """Add message to log output with color coding."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        try:
+            timestamp = datetime.now().strftime("%H:%M:%S")
 
-        # Configure tags for colored text
-        self.log_text.tag_config("timestamp", foreground=self.COLORS['text_secondary'])
-        self.log_text.tag_config("info", foreground=self.COLORS['primary'])
-        self.log_text.tag_config("error", foreground=self.COLORS['error'])
-        self.log_text.tag_config("ok", foreground=self.COLORS['success'])
-        self.log_text.tag_config("warning", foreground=self.COLORS['warning'])
+            # Configure tags for colored text
+            self.log_text.tag_config("timestamp", foreground=self.COLORS['text_secondary'])
+            self.log_text.tag_config("info", foreground=self.COLORS['primary'])
+            self.log_text.tag_config("error", foreground=self.COLORS['error'])
+            self.log_text.tag_config("ok", foreground=self.COLORS['success'])
+            self.log_text.tag_config("warning", foreground=self.COLORS['warning'])
 
-        # Determine icon and tag based on level
-        if level == "error":
-            icon = "❌"
-            tag = "error"
-        elif level == "ok":
-            icon = "✓"
-            tag = "ok"
-        elif level == "warning":
-            icon = "⚠️"
-            tag = "warning"
-        else:
-            icon = "ℹ️"
-            tag = "info"
+            # Determine icon and tag based on level
+            if level == "error":
+                icon = "❌"
+                tag = "error"
+            elif level == "ok":
+                icon = "✓"
+                tag = "ok"
+            elif level == "warning":
+                icon = "⚠️"
+                tag = "warning"
+            else:
+                icon = "ℹ️"
+                tag = "info"
 
-        # Insert timestamp
-        self.log_text.insert(tk.END, f"[{timestamp}] ", "timestamp")
-        # Insert icon and message
-        self.log_text.insert(tk.END, f"{icon} {message}\n", tag)
-        self.log_text.see(tk.END)
-        self.root.update_idletasks()
+            # Insert timestamp
+            self.log_text.insert(tk.END, f"[{timestamp}] ", "timestamp")
+            # Insert icon and message
+            self.log_text.insert(tk.END, f"{icon} {message}\n", tag)
+            self.log_text.see(tk.END)
+            self.root.update_idletasks()
+        except RuntimeError:
+            # Main loop is not running, silently ignore
+            pass
+
+    def generate_custom_distribution(self, num_emails: int) -> list:
+        """
+        Generate distribution for custom instructions mode.
+        Uses unique categories (no repeats until all used) and alternates ticket types.
+
+        Args:
+            num_emails: Number of tickets to generate
+
+        Returns:
+            List of ticket distribution dictionaries
+        """
+        import random
+
+        distribution = []
+
+        # Create a shuffled list of unique categories
+        available_categories = self.categories.copy()
+        random.shuffle(available_categories)
+
+        # Alternate between Service Request and Incident
+        # Start with Service Request
+        ticket_types = ["Service Request", "Incident"]
+
+        for i in range(num_emails):
+            # Get next unique category (reshuffle if we run out)
+            if not available_categories:
+                available_categories = self.categories.copy()
+                random.shuffle(available_categories)
+
+            category_info = available_categories.pop(0)
+
+            # Alternate ticket type: SR, Inc, SR, Inc, SR, Inc...
+            ticket_type = ticket_types[i % 2]
+
+            # Use a default priority (can be random or default to Priority 3)
+            priority = random.choice(self.priorities) if self.priorities else "Priority 3"
+
+            distribution.append({
+                "category": category_info['category'],
+                "subcategory": category_info['subcategory'],
+                "item": category_info['item'],
+                "priority": priority,
+                "type": ticket_type
+            })
+
+        return distribution
 
     def authenticate(self):
         """Authenticate with Microsoft Graph API."""
@@ -702,45 +909,78 @@ class TicketGeneratorGUI:
 
         def auth_thread():
             try:
+                # Capture values from StringVars early before any potential interruption
+                try:
+                    client_id = self.client_id.get()
+                    tenant_id = self.tenant_id.get()
+                    sender_email = self.sender_email.get()
+                    claude_key = self.claude_api_key.get()
+                    writing_qual = self.writing_quality.get()
+                except RuntimeError:
+                    # Window is closing, exit silently
+                    return
+
                 self.log("Starting authentication...")
                 self.log("IMPORTANT: Do NOT close this window or press Ctrl+C in the terminal!", "info")
                 self.log("Follow the authentication instructions in the terminal...", "info")
-                authenticator = GraphAuthenticator(self.client_id.get(), self.tenant_id.get())
+                authenticator = GraphAuthenticator(client_id, tenant_id)
                 self.access_token = authenticator.authenticate_device_flow()
 
+                # Check if shutting down before continuing
+                if self.is_shutting_down:
+                    return
+
                 # Initialize components
-                self.email_sender = EmailSender(self.access_token, self.sender_email.get())
+                self.email_sender = EmailSender(self.access_token, sender_email)
                 self.content_gen = ContentGenerator(
-                    self.claude_api_key.get(),
-                    writing_quality=self.writing_quality.get()
+                    claude_key,
+                    writing_quality=writing_qual
                 )
 
                 # Test connection
                 self.log("Testing Microsoft Graph API connection...")
                 if self.email_sender.test_connection():
                     self.authenticated = True
-                    self.root.after(0, lambda: self.auth_status_icon.config(foreground=self.COLORS['success']))
-                    self.root.after(0, lambda: self.auth_status.config(
-                        text="Authenticated ✓",
-                        foreground=self.COLORS['success']))
-                    self.root.after(0, lambda: self.generate_button.config(state=tk.NORMAL))
-                    self.root.after(0, lambda: self.status_label.config(text="Ready to generate emails"))
+                    if not self.is_shutting_down:
+                        try:
+                            self.root.after(0, lambda: self.auth_status_icon.config(foreground=self.COLORS['success']))
+                            self.root.after(0, lambda: self.auth_status.config(
+                                text="Authenticated ✓",
+                                foreground=self.COLORS['success']))
+                            self.root.after(0, lambda: self.generate_button.config(state=tk.NORMAL))
+                            self.root.after(0, lambda: self.status_label.config(text="Ready to generate emails"))
+                        except RuntimeError:
+                            # Main loop stopped, ignore GUI updates
+                            pass
                     self.log("Authentication successful", "ok")
 
                     # Save session for next time
-                    self.save_session()
+                    if not self.is_shutting_down:
+                        self.save_session()
                 else:
                     raise Exception("Failed to connect to Microsoft Graph API")
 
             except KeyboardInterrupt:
-                self.log("Authentication cancelled by user", "error")
-                self.root.after(0, lambda: self.status_label.config(text="Authentication cancelled"))
+                if not self.is_shutting_down:
+                    self.log("Authentication cancelled by user", "error")
+                    try:
+                        self.root.after(0, lambda: self.status_label.config(text="Authentication cancelled"))
+                    except RuntimeError:
+                        pass
             except Exception as e:
-                error_msg = str(e)
-                self.log(f"Authentication failed: {error_msg}", "error")
-                self.root.after(0, lambda: messagebox.showerror("Authentication Error", error_msg))
+                if not self.is_shutting_down:
+                    error_msg = str(e)
+                    self.log(f"Authentication failed: {error_msg}", "error")
+                    try:
+                        self.root.after(0, lambda: messagebox.showerror("Authentication Error", error_msg))
+                    except RuntimeError:
+                        pass
             finally:
-                self.root.after(0, lambda: self.auth_button.config(state=tk.NORMAL))
+                if not self.is_shutting_down:
+                    try:
+                        self.root.after(0, lambda: self.auth_button.config(state=tk.NORMAL))
+                    except RuntimeError:
+                        pass
 
         # Run in separate thread to avoid blocking GUI
         # Use daemon=False to ensure authentication completes even if window is closed
@@ -783,9 +1023,19 @@ class TicketGeneratorGUI:
                 # Get ticket number range
                 start_ticket, end_ticket = self.ticket_counter.get_range(num_emails)
 
-                # Generate distribution
-                distribution = generate_distribution(num_emails, self.categories,
-                                                    self.priorities, self.types)
+                # Generate distribution based on whether custom instructions are enabled
+                custom_instructions_enabled = self.use_custom_instructions.get()
+                custom_instructions_text = self.custom_text.get('1.0', tk.END).strip()
+
+                if custom_instructions_enabled and custom_instructions_text and not custom_instructions_text.startswith('Example:'):
+                    # For custom instructions: use unique categories and alternate ticket types
+                    distribution = self.generate_custom_distribution(num_emails)
+                    self.log(f"Using custom distribution: unique categories, alternating types (SR/Inc/SR/Inc...)", "info")
+                else:
+                    # Standard weighted distribution
+                    distribution = generate_distribution(num_emails, self.categories,
+                                                        self.priorities, self.types)
+
                 priority_counts, type_counts = calculate_distribution_stats(distribution)
 
                 # Create logger
@@ -804,6 +1054,16 @@ class TicketGeneratorGUI:
                 emails_to_send = []
                 generation_errors = 0
 
+                # Get custom instructions if enabled
+                custom_instructions = None
+                if self.use_custom_instructions.get():
+                    custom_instructions = self.custom_text.get('1.0', tk.END).strip()
+                    if custom_instructions and not custom_instructions.startswith('Example:'):
+                        self.log(f"Using custom AI instructions for generation", "info")
+                    else:
+                        custom_instructions = None
+                        self.log("Custom instructions enabled but empty - using category-based generation", "warning")
+
                 for i, ticket in enumerate(distribution, 1):
                     ticket_number = start_ticket + i - 1
                     try:
@@ -816,7 +1076,10 @@ class TicketGeneratorGUI:
                             item=ticket['item'],
                             priority=ticket['priority'],
                             ticket_type=ticket['type'],
-                            ticket_number=ticket_number
+                            ticket_number=ticket_number,
+                            custom_instructions=custom_instructions,
+                            ticket_index=i,
+                            total_tickets=num_emails
                         )
 
                         # Build full category name
@@ -1716,21 +1979,249 @@ Success Rate: {summary['pass_rate']:.1f}%"""
         return [email_data[num] for num in ticket_numbers if num in email_data]
 
     def view_logs(self):
-        """Open logs directory."""
+        """Show log file selection dialog and viewer."""
         logs_dir = os.path.join(os.getcwd(), "logs")
         if not os.path.exists(logs_dir):
             os.makedirs(logs_dir)
             messagebox.showinfo("Info", "Logs directory created but no log files exist yet")
             return
 
-        # Open directory in file explorer
-        if os.name == 'nt':  # Windows
-            os.startfile(logs_dir)
-        elif os.name == 'posix':  # macOS/Linux
-            os.system(f'open "{logs_dir}"')
+        # Get all log files
+        log_files = []
+        for filename in os.listdir(logs_dir):
+            if filename.startswith("email_test_log_") and filename.endswith(".txt"):
+                filepath = os.path.join(logs_dir, filename)
+                log_files.append({
+                    'filename': filename,
+                    'filepath': filepath,
+                    'modified': os.path.getmtime(filepath)
+                })
+
+        if not log_files:
+            messagebox.showinfo("Info", "No log files found")
+            return
+
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: x['modified'], reverse=True)
+
+        # Show log selection dialog
+        self.show_log_selection_dialog(log_files)
+
+    def show_log_selection_dialog(self, log_files):
+        """Show dialog to select which log file to view."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select Log File to View")
+        dialog.geometry("700x500")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Center dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 700) // 2
+        y = (dialog.winfo_screenheight() - 500) // 2
+        dialog.geometry(f"700x500+{x}+{y}")
+
+        # Header
+        header_frame = tk.Frame(dialog, bg=self.COLORS['primary'], height=60)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+
+        title_label = tk.Label(header_frame, text="📋 Select Log File",
+                              font=('Segoe UI', 16, 'bold'),
+                              bg=self.COLORS['primary'], fg='white')
+        title_label.pack(pady=15)
+
+        # Info label
+        info_frame = tk.Frame(dialog, bg=self.COLORS['background'])
+        info_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        info_label = tk.Label(info_frame,
+                             text=f"Found {len(log_files)} log file(s). Select one to view:",
+                             font=('Segoe UI', 10),
+                             bg=self.COLORS['background'],
+                             fg=self.COLORS['text_primary'])
+        info_label.pack(anchor=tk.W)
+
+        # Listbox frame with scrollbar
+        list_frame = tk.Frame(dialog, bg=self.COLORS['background'])
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        listbox = tk.Listbox(list_frame,
+                            font=('Consolas', 10),
+                            bg='white',
+                            fg=self.COLORS['text_primary'],
+                            selectmode=tk.SINGLE,
+                            yscrollcommand=scrollbar.set,
+                            highlightthickness=1,
+                            highlightbackground=self.COLORS['border'],
+                            activestyle='none',
+                            selectbackground=self.COLORS['primary_light'],
+                            selectforeground='white')
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+
+        # Populate listbox with log files
+        from datetime import datetime
+        for log_file in log_files:
+            mod_time = datetime.fromtimestamp(log_file['modified'])
+            display_text = f"{log_file['filename']} • {mod_time.strftime('%Y-%m-%d %I:%M:%S %p')}"
+            listbox.insert(tk.END, display_text)
+
+        # Button frame
+        button_frame = tk.Frame(dialog, bg=self.COLORS['background'])
+        button_frame.pack(fill=tk.X, padx=20, pady=15)
+
+        def on_view():
+            selection = listbox.curselection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select a log file to view")
+                return
+
+            selected_log = log_files[selection[0]]
+            dialog.destroy()
+            self.show_log_viewer(selected_log['filepath'], selected_log['filename'])
+
+        def on_cancel():
+            dialog.destroy()
+
+        # Double-click to view
+        listbox.bind('<Double-Button-1>', lambda e: on_view())
+
+        cancel_btn = ttk.Button(button_frame, text="Cancel", command=on_cancel)
+        cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        view_btn = ttk.Button(button_frame, text="📖 View Log", command=on_view, style='Success.TButton')
+        view_btn.pack(side=tk.RIGHT)
+
+        # Select first item by default
+        if log_files:
+            listbox.selection_set(0)
+            listbox.focus_set()
+
+    def show_log_viewer(self, filepath, filename):
+        """Show log file viewer window."""
+        viewer = tk.Toplevel(self.root)
+        viewer.title(f"Log Viewer - {filename}")
+        viewer.geometry("1000x700")
+        viewer.transient(self.root)
+
+        # Center viewer
+        viewer.update_idletasks()
+        x = (viewer.winfo_screenwidth() - 1000) // 2
+        y = (viewer.winfo_screenheight() - 700) // 2
+        viewer.geometry(f"1000x700+{x}+{y}")
+
+        # Header
+        header_frame = tk.Frame(viewer, bg=self.COLORS['primary'], height=60)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+
+        title_label = tk.Label(header_frame, text=f"📋 {filename}",
+                              font=('Segoe UI', 14, 'bold'),
+                              bg=self.COLORS['primary'], fg='white')
+        title_label.pack(pady=15)
+
+        # Main content frame
+        content_frame = tk.Frame(viewer, bg=self.COLORS['background'])
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Text widget with scrollbar
+        text_container = tk.Frame(content_frame, bg='white',
+                                 highlightthickness=1,
+                                 highlightbackground=self.COLORS['border'])
+        text_container.pack(fill=tk.BOTH, expand=True)
+
+        scrollbar = ttk.Scrollbar(text_container)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        text_widget = tk.Text(text_container,
+                             font=('Consolas', 9),
+                             bg='white',
+                             fg=self.COLORS['text_primary'],
+                             wrap=tk.WORD,
+                             yscrollcommand=scrollbar.set,
+                             relief='flat',
+                             padx=15,
+                             pady=15)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+
+        # Read and display log file
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Configure text tags for syntax highlighting
+            text_widget.tag_config('header', font=('Consolas', 10, 'bold'),
+                                  foreground=self.COLORS['primary'])
+            text_widget.tag_config('section', font=('Consolas', 9, 'bold'),
+                                  foreground=self.COLORS['accent'])
+            text_widget.tag_config('success', foreground=self.COLORS['success'])
+            text_widget.tag_config('error', foreground=self.COLORS['error'])
+            text_widget.tag_config('key', foreground=self.COLORS['text_secondary'])
+            text_widget.tag_config('separator', foreground=self.COLORS['border'])
+
+            # Insert content with formatting
+            lines = content.split('\n')
+            for line in lines:
+                if line.startswith('='*50) or line.startswith('-'*50):
+                    text_widget.insert(tk.END, line + '\n', 'separator')
+                elif 'CONFIGURATION' in line or 'GENERATION LOG' in line or 'SENDING LOG' in line or 'SUMMARY' in line:
+                    text_widget.insert(tk.END, line + '\n', 'header')
+                elif line.startswith('Ticket #') or line.startswith('['):
+                    text_widget.insert(tk.END, line + '\n', 'section')
+                elif 'SUCCESS' in line or 'Sent successfully' in line:
+                    text_widget.insert(tk.END, line + '\n', 'success')
+                elif 'FAILED' in line or 'Error' in line:
+                    text_widget.insert(tk.END, line + '\n', 'error')
+                elif ':' in line and not line.startswith(' '):
+                    # Key-value pairs
+                    parts = line.split(':', 1)
+                    text_widget.insert(tk.END, parts[0] + ':', 'key')
+                    if len(parts) > 1:
+                        text_widget.insert(tk.END, parts[1] + '\n')
+                    else:
+                        text_widget.insert(tk.END, '\n')
+                else:
+                    text_widget.insert(tk.END, line + '\n')
+
+            text_widget.config(state=tk.DISABLED)
+
+        except Exception as e:
+            text_widget.insert(tk.END, f"Error reading log file: {str(e)}", 'error')
+            text_widget.config(state=tk.DISABLED)
+
+        # Button frame
+        button_frame = tk.Frame(viewer, bg=self.COLORS['background'])
+        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        def open_in_folder():
+            """Open the log file location in file explorer."""
+            logs_dir = os.path.dirname(filepath)
+            if os.name == 'nt':  # Windows
+                os.startfile(logs_dir)
+            elif os.name == 'posix':  # macOS/Linux
+                os.system(f'open "{logs_dir}"')
+
+        close_btn = ttk.Button(button_frame, text="Close", command=viewer.destroy)
+        close_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        folder_btn = ttk.Button(button_frame, text="📁 Open in Folder", command=open_in_folder)
+        folder_btn.pack(side=tk.RIGHT)
 
     def save_session(self):
         """Save current session data to file."""
+        # Try to get StringVar values, skip if main loop stopped
+        try:
+            sender_email = self.sender_email.get()
+            fs_domain = self.fs_domain.get()
+        except RuntimeError:
+            # Main loop not running, skip session save silently
+            return
+
         try:
             import json
             from datetime import datetime
@@ -1738,9 +2229,9 @@ Success Rate: {summary['pass_rate']:.1f}%"""
             session_data = {
                 'access_token': self.access_token,
                 'authenticated': self.authenticated,
-                'sender_email': self.sender_email.get(),
+                'sender_email': sender_email,
                 'fs_connected': self.fs_connected,
-                'fs_domain': self.fs_domain.get(),
+                'fs_domain': fs_domain,
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -1850,6 +2341,7 @@ def main():
 
         # Handle window close properly
         def on_closing():
+            app.is_shutting_down = True
             try:
                 root.quit()
                 root.destroy()
@@ -1859,7 +2351,8 @@ def main():
         root.protocol("WM_DELETE_WINDOW", on_closing)
         root.mainloop()
     except KeyboardInterrupt:
-        print("\nProgram interrupted by user")
+        # Suppress the message if we're shutting down normally
+        pass
     except Exception as e:
         print(f"Fatal error: {e}")
         import traceback

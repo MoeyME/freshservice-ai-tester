@@ -18,6 +18,40 @@ class ContentGenerator:
     COST_PER_1M_INPUT_TOKENS = 0.80  # $0.80 per 1M input tokens
     COST_PER_1M_OUTPUT_TOKENS = 4.00  # $4.00 per 1M output tokens
 
+    # Email generation prompt template with custom instructions
+    CUSTOM_EMAIL_PROMPT_TEMPLATE = """Generate a realistic IT support ticket email from an end user for Dahlsens (a building supplies company).
+
+CUSTOM INSTRUCTIONS FOR THIS BATCH:
+{custom_instructions}
+
+IMPORTANT: The custom instructions above describe MULTIPLE different ticket scenarios. You need to generate ONE ticket for THIS specific scenario:
+Ticket #{ticket_number} of {total_tickets}
+
+Your task: Create a UNIQUE ticket that corresponds to ONE of the scenarios described in the custom instructions. Each ticket number should represent a DIFFERENT scenario from the list.
+
+For example, if the instructions list 5 different scenarios (network outage, new laptop, monitors, POS issue, Framework down), then:
+- Ticket #1 should be about the network outage
+- Ticket #2 should be about the new laptop request
+- Ticket #3 should be about the monitors request
+- Ticket #4 should be about the POS issue
+- Ticket #5 should be about Framework being down
+
+WRITING STYLE: {writing_style}
+
+INSTRUCTIONS:
+Create an email that:
+- Addresses ONE SPECIFIC scenario from the custom instructions (based on this ticket's position in the sequence)
+- Has a natural, concise subject line that a real user would write (no urgency keywords, no technical jargon)
+- Sounds like a real employee at a building supplies company
+- Uses Australian English spelling and terminology
+- Mentions specific business functions when relevant (POS, Framework ERP, estimating, detailing, production, TAF processing, etc.)
+- Is DIFFERENT from the other tickets in this batch - each ticket should cover a distinct scenario
+
+Respond ONLY with JSON in this exact format:
+{{"subject": "email subject here", "description": "email body here"}}
+
+Do not include any other text, explanation, or markdown formatting."""
+
     # Email generation prompt template
     EMAIL_PROMPT_TEMPLATE = """Generate a realistic IT support ticket email from an end user for Dahlsens (a building supplies company).
 
@@ -120,7 +154,10 @@ Do not include any other text, explanation, or markdown formatting."""
         priority: str,
         ticket_type: str,
         ticket_number: int,
-        retry_count: int = 3
+        retry_count: int = 3,
+        custom_instructions: Optional[str] = None,
+        ticket_index: int = 1,
+        total_tickets: int = 1
     ) -> Tuple[str, str]:
         """
         Generate email subject and description for a ticket.
@@ -133,6 +170,9 @@ Do not include any other text, explanation, or markdown formatting."""
             ticket_type: Incident or Service Request
             ticket_number: Sequential ticket number to include in description
             retry_count: Number of retries on failure
+            custom_instructions: Optional custom instructions to override category-based generation
+            ticket_index: Current ticket position in batch (1-based)
+            total_tickets: Total number of tickets in batch
 
         Returns:
             Tuple of (subject, description)
@@ -185,14 +225,23 @@ Do not include any other text, explanation, or markdown formatting."""
   * "I require access to the shared drive for the new project as soon as possible."
   * "My computer will not power on. I have tried troubleshooting steps but am unable to resolve the issue."""
 
-        prompt = self.EMAIL_PROMPT_TEMPLATE.format(
-            category=category,
-            subcategory=subcategory if subcategory else "General",
-            item=item if item else "General",
-            priority=priority,
-            ticket_type=ticket_type,
-            writing_style=writing_style
-        )
+        # Use custom instructions if provided, otherwise use standard template
+        if custom_instructions and custom_instructions.strip():
+            prompt = self.CUSTOM_EMAIL_PROMPT_TEMPLATE.format(
+                custom_instructions=custom_instructions.strip(),
+                ticket_number=ticket_index,
+                total_tickets=total_tickets,
+                writing_style=writing_style
+            )
+        else:
+            prompt = self.EMAIL_PROMPT_TEMPLATE.format(
+                category=category,
+                subcategory=subcategory if subcategory else "General",
+                item=item if item else "General",
+                priority=priority,
+                ticket_type=ticket_type,
+                writing_style=writing_style
+            )
 
         headers = {
             "Content-Type": "application/json",
@@ -272,9 +321,11 @@ Do not include any other text, explanation, or markdown formatting."""
                         if subject_match and desc_match:
                             subject = subject_match.group(1).strip()
                             description = desc_match.group(1).strip()
+                            # Add test prefix to subject for Freshservice tracking
+                            subject_with_prefix = f"[TEST-TKT-{ticket_number}] {subject}"
                             # Add ticket number to description
                             description_with_ticket = f"[Ticket #{ticket_number}]\n\n{description}"
-                            return subject, description_with_ticket
+                            return subject_with_prefix, description_with_ticket
 
                         # Last resort: try simple text extraction
                         subject = ""

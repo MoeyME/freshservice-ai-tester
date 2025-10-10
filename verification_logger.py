@@ -152,42 +152,24 @@ class VerificationLogger:
         f.write(f"Status:                 {status_icon} {status}\n\n")
 
         if status == 'FOUND':
-            # Comparison table
-            f.write("Expected vs Actual Comparison:\n")
+            # Field values table (actual values only)
+            f.write("Freshservice Field Values:\n")
             f.write("-" * 80 + "\n")
-            f.write(f"{'Field':<20} {'Expected':<25} {'Actual':<25} {'Status':<10}\n")
+            f.write(f"{'Field':<30} {'Value':<50}\n")
             f.write("-" * 80 + "\n")
 
             comparisons = result['comparisons']
             for field_name, comparison in comparisons.items():
                 field_label = field_name.replace('_', ' ').title()
-                expected = str(comparison['expected'])[:24]
-                actual = str(comparison['actual'])[:24]
+                actual = str(comparison['actual'])
 
-                # All fields are now validated (including group)
-                if comparison['match'] is None:
-                    match_icon = "ℹ INFO"
-                elif comparison['match']:
-                    match_icon = "✓ MATCH"
-                else:
-                    match_icon = "✗ MISMATCH"
+                # Truncate long values but show more than before
+                if len(actual) > 48:
+                    actual = actual[:45] + "..."
 
-                f.write(f"{field_label:<20} {expected:<25} {actual:<25} {match_icon:<10}\n")
+                f.write(f"{field_label:<30} {actual:<50}\n")
 
             f.write("\n")
-
-            # Overall result
-            if overall == 'PASS':
-                f.write("Overall Result: ✓ ALL FIELDS CORRECT\n")
-            else:
-                f.write(f"Overall Result: ✗ {result['mismatch_count']} FIELDS INCORRECT\n")
-
-                # Possible reasons for mismatches
-                f.write("\nPossible Reasons:\n")
-                f.write("- Email content may not have triggered correct categorization rules\n")
-                f.write("- Freshservice automation/workflow rules may override email-based assignment\n")
-                f.write("- Priority Matrix in Freshservice may have different configuration\n")
-                f.write("- Agent assignment rules may require specific keywords or patterns\n")
 
         else:  # NOT_FOUND
             f.write("Possible Reasons:\n")
