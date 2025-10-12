@@ -75,6 +75,16 @@ class TicketGeneratorGUI:
 
     def __init__(self, root):
         self.root = root
+
+        # Wrap root.quit() to track when it's called
+        original_quit = self.root.quit
+        def tracked_quit():
+            import traceback
+            print("[DEBUG] root.quit() called! Stack trace:")
+            traceback.print_stack()
+            original_quit()
+        self.root.quit = tracked_quit
+
         self.root.title("IT Ticket Email Generator • Modern Interface")
         self.root.geometry("1250x920")
 
@@ -806,37 +816,48 @@ class TicketGeneratorGUI:
             self.log(f"Error loading configuration: {str(e)}", "error")
 
     def log(self, message, level="info"):
-        """Add message to log output with color coding."""
+        """
+        Add message to log output with color coding.
+        Thread-safe: schedules GUI updates on main thread via root.after().
+        """
+        def _log_internal():
+            try:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+
+                # Configure tags for colored text
+                self.log_text.tag_config("timestamp", foreground=self.COLORS['text_secondary'])
+                self.log_text.tag_config("info", foreground=self.COLORS['primary'])
+                self.log_text.tag_config("error", foreground=self.COLORS['error'])
+                self.log_text.tag_config("ok", foreground=self.COLORS['success'])
+                self.log_text.tag_config("warning", foreground=self.COLORS['warning'])
+
+                # Determine icon and tag based on level
+                if level == "error":
+                    icon = "❌"
+                    tag = "error"
+                elif level == "ok":
+                    icon = "✓"
+                    tag = "ok"
+                elif level == "warning":
+                    icon = "⚠️"
+                    tag = "warning"
+                else:
+                    icon = "ℹ️"
+                    tag = "info"
+
+                # Insert timestamp
+                self.log_text.insert(tk.END, f"[{timestamp}] ", "timestamp")
+                # Insert icon and message
+                self.log_text.insert(tk.END, f"{icon} {message}\n", tag)
+                self.log_text.see(tk.END)
+                self.root.update_idletasks()
+            except RuntimeError:
+                # Main loop is not running, silently ignore
+                pass
+
+        # Schedule on main thread to ensure thread safety
         try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-
-            # Configure tags for colored text
-            self.log_text.tag_config("timestamp", foreground=self.COLORS['text_secondary'])
-            self.log_text.tag_config("info", foreground=self.COLORS['primary'])
-            self.log_text.tag_config("error", foreground=self.COLORS['error'])
-            self.log_text.tag_config("ok", foreground=self.COLORS['success'])
-            self.log_text.tag_config("warning", foreground=self.COLORS['warning'])
-
-            # Determine icon and tag based on level
-            if level == "error":
-                icon = "❌"
-                tag = "error"
-            elif level == "ok":
-                icon = "✓"
-                tag = "ok"
-            elif level == "warning":
-                icon = "⚠️"
-                tag = "warning"
-            else:
-                icon = "ℹ️"
-                tag = "info"
-
-            # Insert timestamp
-            self.log_text.insert(tk.END, f"[{timestamp}] ", "timestamp")
-            # Insert icon and message
-            self.log_text.insert(tk.END, f"{icon} {message}\n", tag)
-            self.log_text.see(tk.END)
-            self.root.update_idletasks()
+            self.root.after(0, _log_internal)
         except RuntimeError:
             # Main loop is not running, silently ignore
             pass
@@ -983,9 +1004,12 @@ class TicketGeneratorGUI:
                         pass
 
         # Run in separate thread to avoid blocking GUI
-        # Use daemon=False to ensure authentication completes even if window is closed
-        auth_t = threading.Thread(target=auth_thread, daemon=False)
+        # Use daemon=True to prevent thread from outliving the main program
+        # The is_shutting_down flag prevents auth from continuing if window closes
+        auth_t = threading.Thread(target=auth_thread, daemon=True)
+        print(f"[DEBUG] Starting authentication thread (daemon={auth_t.daemon})")
         auth_t.start()
+        print(f"[DEBUG] Authentication thread started, main thread continuing...")
 
     def generate_emails(self):
         """Generate and send emails."""
@@ -2341,6 +2365,7 @@ def main():
 
         # Handle window close properly
         def on_closing():
+            print("[DEBUG] on_closing() called - user closed window")
             app.is_shutting_down = True
             try:
                 root.quit()
@@ -2349,9 +2374,12 @@ def main():
                 pass
 
         root.protocol("WM_DELETE_WINDOW", on_closing)
+        print("[DEBUG] Starting mainloop...")
         root.mainloop()
+        print("[DEBUG] Mainloop exited")
     except KeyboardInterrupt:
         # Suppress the message if we're shutting down normally
+        print("[DEBUG] KeyboardInterrupt caught in main()")
         pass
     except Exception as e:
         print(f"Fatal error: {e}")
