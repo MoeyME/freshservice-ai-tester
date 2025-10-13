@@ -85,8 +85,8 @@ class TicketGeneratorGUI:
             original_quit()
         self.root.quit = tracked_quit
 
-        self.root.title("IT Ticket Email Generator • Modern Interface")
-        self.root.geometry("1250x920")
+        self.root.title("IT Ticket Email Generator • Dashboard")
+        self.root.geometry("1400x900")
 
         # Dark mode state
         self.dark_mode = tk.BooleanVar(value=False)
@@ -95,8 +95,8 @@ class TicketGeneratorGUI:
         self.root.update_idletasks()
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        window_width = 1250
-        window_height = 920
+        window_width = 1400
+        window_height = 900
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
@@ -348,427 +348,226 @@ class TicketGeneratorGUI:
         return shadow_frame, card_frame
 
     def create_widgets(self):
-        # Create canvas with scrollbar for main content
-        canvas_container = ttk.Frame(self.root, style='Main.TFrame')
-        canvas_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Main container - no scrolling, fixed dashboard layout
+        main_frame = ttk.Frame(self.root, style='Main.TFrame', padding="15")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-        # Configure grid weights
+        # Configure grid weights for responsive layout
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        canvas_container.columnconfigure(0, weight=1)
-        canvas_container.rowconfigure(0, weight=1)
 
-        # Create canvas and scrollbar
-        canvas = tk.Canvas(canvas_container, bg=self.COLORS['background'], highlightthickness=0)
-        scrollbar = ttk.Scrollbar(canvas_container, orient="vertical", command=canvas.yview)
+        # 3-column grid layout
+        main_frame.columnconfigure(0, weight=1)  # Left column
+        main_frame.columnconfigure(1, weight=1)  # Middle column
+        main_frame.columnconfigure(2, weight=1)  # Right column
 
-        # Main container with padding
-        main_frame = ttk.Frame(canvas, style='Main.TFrame', padding="35")
+        # 3 rows
+        main_frame.rowconfigure(0, weight=0)  # Header (fixed height)
+        main_frame.rowconfigure(1, weight=1)  # Middle row (expandable)
+        main_frame.rowconfigure(2, weight=1)  # Bottom row (expandable)
 
-        # Configure canvas scrolling
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        # Create window in canvas
-        canvas_window = canvas.create_window((0, 0), window=main_frame, anchor="nw")
-
-        # Update scroll region when content changes
-        def configure_scroll_region(event=None):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        main_frame.bind("<Configure>", configure_scroll_region)
-
-        # Pack canvas and scrollbar
-        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-
-        # Update canvas window width when canvas is resized
-        def on_canvas_configure(event):
-            try:
-                canvas.itemconfig(canvas_window, width=event.width)
-            except:
-                pass
-
-        canvas.bind("<Configure>", on_canvas_configure)
-
-        # Enable mousewheel scrolling anywhere in the window
-        def on_mousewheel(event):
-            try:
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            except:
-                pass
-
-        # Bind mousewheel to the root window so it works anywhere
-        self.root.bind("<MouseWheel>", on_mousewheel)
-
-        # Also bind to canvas for redundancy
-        canvas.bind("<MouseWheel>", on_mousewheel)
-
-        # Bind to main_frame and all its children recursively
-        def bind_mousewheel(widget):
-            widget.bind("<MouseWheel>", on_mousewheel)
-            for child in widget.winfo_children():
-                bind_mousewheel(child)
-
-        # Store canvas reference for later use
-        self.main_canvas = canvas
-
-        # Initial binding to all existing widgets
-        bind_mousewheel(main_frame)
-
-        main_frame.columnconfigure(0, weight=1)
-
-        row = 0
-
-        # Header Card with gradient background effect
+        # ===== ROW 0: HEADER (spans all 3 columns) =====
         header_shadow = tk.Frame(main_frame, bg=self.COLORS['shadow_medium'])
-        header_shadow.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 25))
+        header_shadow.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10), padx=5)
 
-        # Gradient-like header (using primary color)
+        # Compact header
         header_card = tk.Frame(header_shadow, bg=self.COLORS['primary'], padx=0, pady=0)
-        header_card.pack(padx=(0, 3), pady=(0, 3), fill=tk.BOTH, expand=True)
-        header_card.columnconfigure(0, weight=1)
+        header_card.pack(padx=(0, 2), pady=(0, 2), fill=tk.BOTH)
 
-        # Content area within header
-        header_content = ttk.Frame(header_card, style='Card.TFrame', padding="30")
-        header_content.pack(fill=tk.BOTH, expand=True)
+        header_content = ttk.Frame(header_card, style='Card.TFrame', padding="15")
+        header_content.pack(fill=tk.BOTH)
         header_content.columnconfigure(0, weight=1)
 
-        # Title with icon and buttons
         title_frame = ttk.Frame(header_content, style='Card.TFrame')
-        title_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        title_frame.columnconfigure(0, weight=1)
+        title_frame.pack(fill=tk.X)
 
-        title_label = ttk.Label(title_frame, text="📧 IT Ticket Email Generator",
-                               style='Title.TLabel')
-        title_label.pack(side=tk.LEFT)
+        ttk.Label(title_frame, text="📧 IT Ticket Email Generator",
+                 font=('Segoe UI', 16, 'bold'), foreground=self.COLORS['primary'],
+                 background=self.COLORS['surface']).pack(side=tk.LEFT)
 
-        # Dark mode toggle button
-        self.theme_button = ttk.Button(title_frame, text="🌙 Dark Mode",
-                                      command=self.toggle_theme,
-                                      style='Primary.TButton')
-        self.theme_button.pack(side=tk.RIGHT, padx=(10, 0))
+        self.theme_button = ttk.Button(title_frame, text="🌙", command=self.toggle_theme,
+                                      style='Primary.TButton', width=3)
+        self.theme_button.pack(side=tk.RIGHT, padx=(5, 0))
 
-        # Refresh button
-        refresh_button = ttk.Button(title_frame, text="🔄 Reload Config",
-                                   command=self.reload_modules,
-                                   style='Primary.TButton')
-        refresh_button.pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(title_frame, text="🔄", command=self.reload_modules,
+                  style='Primary.TButton', width=3).pack(side=tk.RIGHT, padx=(5, 0))
 
-        subtitle_label = ttk.Label(header_content,
-                                   text="Generate realistic test emails for IT support systems",
-                                   style='Info.TLabel')
-        subtitle_label.grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
-        row += 1
+        # ===== CARD 1: Configuration (Row 1, Col 0) =====
+        config_shadow, config_card = self.create_card_with_shadow(main_frame, padding="12")
+        config_shadow.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
 
-        # Configuration Card with shadow
-        config_shadow, config_card = self.create_card_with_shadow(main_frame, padding="25")
-        config_shadow.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 25))
-        config_card.columnconfigure(1, weight=1)
+        ttk.Label(config_card, text="🔐 Configuration", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
 
-        config_row = 0
+        form_frame = ttk.Frame(config_card, style='Card.TFrame')
+        form_frame.pack(fill=tk.BOTH)
 
-        # Section title
-        ttk.Label(config_card, text="🔐 Configuration",
-                 style='SectionTitle.TLabel').grid(row=config_row, column=0, columnspan=2,
-                                                   sticky=tk.W, pady=(0, 15))
-        config_row += 1
+        ttk.Label(form_frame, text="Client ID:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(form_frame, textvariable=self.client_id, font=('Segoe UI', 8), width=25).grid(row=0, column=1, sticky=tk.W, pady=3)
 
-        # Azure subsection
-        ttk.Label(config_card, text="Microsoft Azure", style='Card.TLabel',
-                 font=('Segoe UI', 10, 'bold')).grid(row=config_row, column=0, columnspan=2,
-                                                     sticky=tk.W, pady=(5, 10))
-        config_row += 1
+        ttk.Label(form_frame, text="Tenant ID:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(form_frame, textvariable=self.tenant_id, font=('Segoe UI', 8), width=25).grid(row=1, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(config_card, text="Client ID:", style='Card.TLabel').grid(row=config_row, column=0,
-                                                                            sticky=tk.W, pady=8, padx=(0, 15))
-        client_entry = ttk.Entry(config_card, textvariable=self.client_id, font=('Segoe UI', 10))
-        client_entry.grid(row=config_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        config_row += 1
+        ttk.Label(form_frame, text="Sender:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(form_frame, textvariable=self.sender_email, font=('Segoe UI', 8), width=25).grid(row=2, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(config_card, text="Tenant ID:", style='Card.TLabel').grid(row=config_row, column=0,
-                                                                            sticky=tk.W, pady=8, padx=(0, 15))
-        tenant_entry = ttk.Entry(config_card, textvariable=self.tenant_id, font=('Segoe UI', 10))
-        tenant_entry.grid(row=config_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        config_row += 1
+        ttk.Label(form_frame, text="Recipient:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=3, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(form_frame, textvariable=self.recipient_email, font=('Segoe UI', 8), width=25).grid(row=3, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(config_card, text="Sender Email:", style='Card.TLabel').grid(row=config_row, column=0,
-                                                                               sticky=tk.W, pady=8, padx=(0, 15))
-        sender_entry = ttk.Entry(config_card, textvariable=self.sender_email, font=('Segoe UI', 10))
-        sender_entry.grid(row=config_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        config_row += 1
+        ttk.Label(form_frame, text="Claude Key:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=4, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(form_frame, textvariable=self.claude_api_key, show="•", font=('Segoe UI', 8), width=25).grid(row=4, column=1, sticky=tk.W, pady=3)
 
-        ttk.Label(config_card, text="Recipient Email:", style='Card.TLabel').grid(row=config_row, column=0,
-                                                                                  sticky=tk.W, pady=8, padx=(0, 15))
-        recipient_entry = ttk.Entry(config_card, textvariable=self.recipient_email, font=('Segoe UI', 10))
-        recipient_entry.grid(row=config_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        config_row += 1
-
-        # Claude API subsection
-        ttk.Label(config_card, text="Claude API", style='Card.TLabel',
-                 font=('Segoe UI', 10, 'bold')).grid(row=config_row, column=0, columnspan=2,
-                                                     sticky=tk.W, pady=(15, 10))
-        config_row += 1
-
-        ttk.Label(config_card, text="API Key:", style='Card.TLabel').grid(row=config_row, column=0,
-                                                                          sticky=tk.W, pady=8, padx=(0, 15))
-        api_entry = ttk.Entry(config_card, textvariable=self.claude_api_key, show="•", font=('Segoe UI', 10))
-        api_entry.grid(row=config_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        config_row += 1
-
-        # Authentication section
         auth_frame = ttk.Frame(config_card, style='Card.TFrame')
-        auth_frame.grid(row=config_row, column=0, columnspan=2, pady=(15, 0))
+        auth_frame.pack(fill=tk.X, pady=(8, 0))
 
         self.auth_button = ttk.Button(auth_frame, text="🔑 Authenticate", command=self.authenticate,
                                       style='Primary.TButton')
-        self.auth_button.pack(side=tk.LEFT, padx=(0, 15))
+        self.auth_button.pack(side=tk.LEFT, padx=(0, 5))
 
         status_frame = tk.Frame(auth_frame, bg=self.COLORS['surface'],
                                highlightthickness=1, highlightbackground=self.COLORS['border'],
-                               padx=12, pady=6)
+                               padx=8, pady=4)
         status_frame.pack(side=tk.LEFT)
 
         self.auth_status_icon = ttk.Label(status_frame, text="●", style='Card.TLabel',
-                                          foreground=self.COLORS['error'], font=('Segoe UI', 16))
-        self.auth_status_icon.pack(side=tk.LEFT, padx=(0, 8))
+                                          foreground=self.COLORS['error'], font=('Segoe UI', 12))
+        self.auth_status_icon.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.auth_status = ttk.Label(status_frame, text="Not Authenticated", style='Card.TLabel',
-                                     foreground=self.COLORS['error'], font=('Segoe UI', 10, 'bold'))
+        self.auth_status = ttk.Label(status_frame, text="Not Auth", style='Card.TLabel',
+                                     foreground=self.COLORS['error'], font=('Segoe UI', 9, 'bold'))
         self.auth_status.pack(side=tk.LEFT)
 
-        row += 1
+        # ===== CARD 2: Freshservice (Row 1, Col 1) =====
+        fs_shadow, fs_card = self.create_card_with_shadow(main_frame, padding="12")
+        fs_shadow.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
 
-        # Freshservice Configuration Card with shadow
-        fs_shadow, fs_card = self.create_card_with_shadow(main_frame, padding="25")
-        fs_shadow.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 25))
-        fs_card.columnconfigure(1, weight=1)
+        ttk.Label(fs_card, text="🔍 Freshservice", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
 
-        fs_row = 0
+        fs_form = ttk.Frame(fs_card, style='Card.TFrame')
+        fs_form.pack(fill=tk.BOTH)
 
-        # Section title
-        ttk.Label(fs_card, text="🔍 Freshservice Verification (Optional)",
-                 style='SectionTitle.TLabel').grid(row=fs_row, column=0, columnspan=2,
-                                                   sticky=tk.W, pady=(0, 10))
-        fs_row += 1
+        ttk.Label(fs_form, text="Domain:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(fs_form, textvariable=self.fs_domain, font=('Segoe UI', 8), width=25).grid(row=0, column=1, sticky=tk.W, pady=3)
 
-        # Info label
-        ttk.Label(fs_card, text="Configure Freshservice to verify ticket categorization after emails are sent",
-                 style='Info.TLabel').grid(row=fs_row, column=0, columnspan=2, sticky=tk.W, pady=(0, 15))
-        fs_row += 1
+        ttk.Label(fs_form, text="API Key:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(fs_form, textvariable=self.fs_api_key, show="•", font=('Segoe UI', 8), width=25).grid(row=1, column=1, sticky=tk.W, pady=3)
 
-        # Freshservice Domain
-        ttk.Label(fs_card, text="Freshservice Domain:", style='Card.TLabel').grid(row=fs_row, column=0,
-                                                                                  sticky=tk.W, pady=8, padx=(0, 15))
-        domain_entry = ttk.Entry(fs_card, textvariable=self.fs_domain, font=('Segoe UI', 10))
-        domain_entry.grid(row=fs_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        fs_row += 1
+        ttk.Label(fs_form, text="Wait (min):", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=tk.W, pady=3)
+        ttk.Spinbox(fs_form, from_=1, to=30, textvariable=self.fs_wait_time, width=8, font=('Segoe UI', 8)).grid(row=2, column=1, sticky=tk.W, pady=3)
 
-        # API Key
-        ttk.Label(fs_card, text="API Key:", style='Card.TLabel').grid(row=fs_row, column=0,
-                                                                      sticky=tk.W, pady=8, padx=(0, 15))
-        fs_api_entry = ttk.Entry(fs_card, textvariable=self.fs_api_key, show="•", font=('Segoe UI', 10))
-        fs_api_entry.grid(row=fs_row, column=1, sticky=(tk.W, tk.E), pady=8)
-        fs_row += 1
+        fs_btn_frame = ttk.Frame(fs_card, style='Card.TFrame')
+        fs_btn_frame.pack(fill=tk.X, pady=(8, 0))
 
-        # Info about group assignment
-        info_label = ttk.Label(fs_card,
-                              text="Note: Group assignment is tracked for AI learning (not pass/fail)",
-                              style='Info.TLabel')
-        info_label.grid(row=fs_row, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
-        fs_row += 1
-
-        # Wait Time
-        ttk.Label(fs_card, text="Verification Wait Time:", style='Card.TLabel').grid(row=fs_row, column=0,
-                                                                                     sticky=tk.W, pady=8, padx=(0, 15))
-        wait_frame = ttk.Frame(fs_card, style='Card.TFrame')
-        wait_frame.grid(row=fs_row, column=1, sticky=tk.W, pady=8)
-
-        wait_spinbox = ttk.Spinbox(wait_frame, from_=1, to=30, textvariable=self.fs_wait_time,
-                                   width=5, font=('Segoe UI', 10))
-        wait_spinbox.pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Label(wait_frame, text="minutes", style='Info.TLabel').pack(side=tk.LEFT)
-        fs_row += 1
-
-        # Test Connection Button
-        fs_button_frame = ttk.Frame(fs_card, style='Card.TFrame')
-        fs_button_frame.grid(row=fs_row, column=0, columnspan=2, pady=(15, 0))
-
-        self.fs_test_button = ttk.Button(fs_button_frame, text="🔗 Test Connection",
-                                        command=self.test_freshservice_connection,
+        self.fs_test_button = ttk.Button(fs_btn_frame, text="🔗 Test", command=self.test_freshservice_connection,
                                         style='Primary.TButton')
-        self.fs_test_button.pack(side=tk.LEFT, padx=(0, 15))
+        self.fs_test_button.pack(side=tk.LEFT, padx=(0, 5))
 
-        fs_status_frame = tk.Frame(fs_button_frame, bg=self.COLORS['surface'],
+        fs_status_frame = tk.Frame(fs_btn_frame, bg=self.COLORS['surface'],
                                   highlightthickness=1, highlightbackground=self.COLORS['border'],
-                                  padx=12, pady=6)
+                                  padx=8, pady=4)
         fs_status_frame.pack(side=tk.LEFT)
 
         self.fs_status_icon = ttk.Label(fs_status_frame, text="●", style='Card.TLabel',
-                                        foreground=self.COLORS['text_secondary'], font=('Segoe UI', 16))
-        self.fs_status_icon.pack(side=tk.LEFT, padx=(0, 8))
+                                        foreground=self.COLORS['text_secondary'], font=('Segoe UI', 12))
+        self.fs_status_icon.pack(side=tk.LEFT, padx=(0, 5))
 
         self.fs_status = ttk.Label(fs_status_frame, text="Not Configured", style='Card.TLabel',
-                                   foreground=self.COLORS['text_secondary'], font=('Segoe UI', 10, 'bold'))
+                                   foreground=self.COLORS['text_secondary'], font=('Segoe UI', 9, 'bold'))
         self.fs_status.pack(side=tk.LEFT)
 
-        row += 1
+        # ===== CARD 3: Generation Settings (Row 1, Col 2) =====
+        gen_shadow, gen_card = self.create_card_with_shadow(main_frame, padding="12")
+        gen_shadow.grid(row=1, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
 
-        # Generation Settings Card with shadow
-        gen_shadow, gen_card = self.create_card_with_shadow(main_frame, padding="25")
-        gen_shadow.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 25))
-        gen_card.columnconfigure(1, weight=1)
+        ttk.Label(gen_card, text="⚙️ Generation", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
 
-        gen_row = 0
+        gen_form = ttk.Frame(gen_card, style='Card.TFrame')
+        gen_form.pack(fill=tk.BOTH)
 
-        # Section title
-        ttk.Label(gen_card, text="⚙️ Generation Settings",
-                 style='SectionTitle.TLabel').grid(row=gen_row, column=0, columnspan=2,
-                                                   sticky=tk.W, pady=(0, 15))
-        gen_row += 1
+        ttk.Label(gen_form, text="Emails:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
+        email_spin_frame = ttk.Frame(gen_form, style='Card.TFrame')
+        email_spin_frame.grid(row=0, column=1, sticky=tk.W, pady=3)
+        ttk.Spinbox(email_spin_frame, from_=1, to=1000, textvariable=self.num_emails, width=8, font=('Segoe UI', 8)).pack(side=tk.LEFT)
+        self.next_ticket_label = ttk.Label(email_spin_frame, text=f"(#{self.ticket_counter.get_current()})",
+                                          font=('Segoe UI', 7), foreground=self.COLORS['text_secondary'],
+                                          background=self.COLORS['surface'])
+        self.next_ticket_label.pack(side=tk.LEFT, padx=(5, 0))
 
-        # Number of emails
-        ttk.Label(gen_card, text="Number of Emails:", style='Card.TLabel').grid(row=gen_row, column=0,
-                                                                                sticky=tk.W, pady=8, padx=(0, 15))
-        email_frame = ttk.Frame(gen_card, style='Card.TFrame')
-        email_frame.grid(row=gen_row, column=1, sticky=tk.W, pady=8)
+        ttk.Label(gen_form, text="Quality:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
+        quality_frame = ttk.Frame(gen_form, style='Card.TFrame')
+        quality_frame.grid(row=1, column=1, sticky=tk.W, pady=3)
+        ttk.Radiobutton(quality_frame, text="Basic", variable=self.writing_quality, value="basic",
+                       style='Card.TRadiobutton').pack(side=tk.LEFT, padx=(0, 3))
+        ttk.Radiobutton(quality_frame, text="Realistic", variable=self.writing_quality, value="realistic",
+                       style='Card.TRadiobutton').pack(side=tk.LEFT, padx=(0, 3))
+        ttk.Radiobutton(quality_frame, text="Polished", variable=self.writing_quality, value="polished",
+                       style='Card.TRadiobutton').pack(side=tk.LEFT)
 
-        spinbox = ttk.Spinbox(email_frame, from_=1, to=1000, textvariable=self.num_emails,
-                             width=10, font=('Segoe UI', 10))
-        spinbox.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(gen_form, text="Custom:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=(tk.W, tk.N), pady=3)
+        custom_frame = ttk.Frame(gen_form, style='Card.TFrame')
+        custom_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=3)
 
-        self.next_ticket_label = ttk.Label(email_frame,
-                                          text=f"Next ticket: #{self.ticket_counter.get_current()}",
-                                          style='Info.TLabel')
-        self.next_ticket_label.pack(side=tk.LEFT)
-        gen_row += 1
+        self.custom_checkbox = ttk.Checkbutton(custom_frame, text="Override with custom",
+                                              variable=self.use_custom_instructions, style='Card.TRadiobutton')
+        self.custom_checkbox.pack(anchor=tk.W)
 
-        # Writing quality
-        ttk.Label(gen_card, text="Writing Quality:", style='Card.TLabel').grid(row=gen_row, column=0,
-                                                                               sticky=tk.W, pady=12, padx=(0, 15))
-        quality_frame = ttk.Frame(gen_card, style='Card.TFrame')
-        quality_frame.grid(row=gen_row, column=1, sticky=tk.W, pady=12)
-
-        ttk.Radiobutton(quality_frame, text="📝 Basic (7th grade)", variable=self.writing_quality,
-                       value="basic", style='Card.TRadiobutton').pack(side=tk.LEFT, padx=(0, 15))
-        ttk.Radiobutton(quality_frame, text="📄 Realistic (10th grade)", variable=self.writing_quality,
-                       value="realistic", style='Card.TRadiobutton').pack(side=tk.LEFT, padx=(0, 15))
-        ttk.Radiobutton(quality_frame, text="✨ Polished", variable=self.writing_quality,
-                       value="polished", style='Card.TRadiobutton').pack(side=tk.LEFT)
-        gen_row += 1
-
-        # Custom Instructions Section
-        ttk.Label(gen_card, text="Custom AI Instructions:", style='Card.TLabel').grid(row=gen_row, column=0,
-                                                                                      sticky=(tk.W, tk.N), pady=12, padx=(0, 15))
-
-        custom_container = ttk.Frame(gen_card, style='Card.TFrame')
-        custom_container.grid(row=gen_row, column=1, sticky=(tk.W, tk.E), pady=12)
-
-        # Checkbox to enable custom instructions
-        self.custom_checkbox = ttk.Checkbutton(custom_container,
-                                              text="Override category-based generation with custom instructions",
-                                              variable=self.use_custom_instructions,
-                                              style='Card.TRadiobutton')
-        self.custom_checkbox.pack(anchor=tk.W, pady=(0, 8))
-
-        # Text area for custom instructions
-        custom_text_container = tk.Frame(custom_container,
-                                        bg='#F9FAFB',
-                                        highlightthickness=1,
+        custom_text_container = tk.Frame(custom_frame, bg='#F9FAFB', highlightthickness=1,
                                         highlightbackground=self.COLORS['border'])
         custom_text_container.pack(fill=tk.BOTH, expand=True)
 
-        self.custom_text = scrolledtext.ScrolledText(custom_text_container,
-                                                     height=4,
-                                                     wrap=tk.WORD,
-                                                     font=('Segoe UI', 9),
-                                                     bg='#F9FAFB',
-                                                     relief='flat',
-                                                     borderwidth=0)
-        self.custom_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
-        self.custom_text.insert('1.0', 'Example: Generate tickets about printer issues where users are frustrated because printing is urgent for customer quotes...')
+        self.custom_text = scrolledtext.ScrolledText(custom_text_container, height=3, wrap=tk.WORD,
+                                                     font=('Segoe UI', 8), bg='#F9FAFB', relief='flat', borderwidth=0)
+        self.custom_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.custom_text.insert('1.0', 'Example: Generate tickets about printer issues...')
         self.custom_text.bind('<FocusIn>', lambda e: self.custom_text.delete('1.0', tk.END) if self.custom_text.get('1.0', tk.END).strip().startswith('Example:') else None)
 
-        # Info label
-        custom_info = ttk.Label(custom_container,
-                               text="When enabled, AI will generate tickets based on your instructions instead of using categories",
-                               style='Info.TLabel')
-        custom_info.pack(anchor=tk.W, pady=(5, 0))
-        gen_row += 1
+        self.generate_button = ttk.Button(gen_card, text="🚀 Generate & Send",
+                                         command=self.generate_emails, state=tk.DISABLED, style='Success.TButton')
+        self.generate_button.pack(fill=tk.X, pady=(8, 0))
 
-        # Generate Button
-        button_frame = ttk.Frame(gen_card, style='Card.TFrame')
-        button_frame.grid(row=gen_row, column=0, columnspan=2, pady=(15, 0))
+        # ===== CARD 4: Progress & Activity (Row 2, Col 0-1 span) =====
+        progress_shadow, progress_card = self.create_card_with_shadow(main_frame, padding="12")
+        progress_shadow.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
 
-        self.generate_button = ttk.Button(button_frame, text="🚀 Generate & Send Emails",
-                                         command=self.generate_emails, state=tk.DISABLED,
-                                         style='Success.TButton')
-        self.generate_button.pack()
+        ttk.Label(progress_card, text="📊 Progress & Activity", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
 
-        row += 1
+        self.status_label = ttk.Label(progress_card, text="Ready to start", font=('Segoe UI', 9), style='Card.TLabel')
+        self.status_label.pack(anchor=tk.W, pady=(0, 5))
 
-        # Progress Card with shadow
-        progress_shadow, progress_card = self.create_card_with_shadow(main_frame, padding="25")
-        progress_shadow.grid(row=row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 25))
-        progress_card.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(row, weight=1)
+        self.progress = ttk.Progressbar(progress_card, mode='determinate', style='Custom.Horizontal.TProgressbar')
+        self.progress.pack(fill=tk.X, pady=(0, 8))
 
-        prog_row = 0
+        log_container = ttk.LabelFrame(progress_card, text="Activity Log", style='Card.TLabelframe', padding="8")
+        log_container.pack(fill=tk.BOTH, expand=True)
 
-        # Section title
-        ttk.Label(progress_card, text="📊 Progress & Logs",
-                 style='SectionTitle.TLabel').grid(row=prog_row, column=0, sticky=tk.W, pady=(0, 15))
-        prog_row += 1
-
-        # Status label
-        self.status_label = ttk.Label(progress_card, text="Ready to start", style='Card.TLabel')
-        self.status_label.grid(row=prog_row, column=0, sticky=tk.W, pady=(0, 10))
-        prog_row += 1
-
-        # Progress bar
-        self.progress = ttk.Progressbar(progress_card, mode='determinate',
-                                       style='Custom.Horizontal.TProgressbar')
-        self.progress.grid(row=prog_row, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
-        prog_row += 1
-
-        # Log output
-        log_container = ttk.LabelFrame(progress_card, text="Activity Log", style='Card.TLabelframe',
-                                      padding="10")
-        log_container.grid(row=prog_row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
-        progress_card.rowconfigure(prog_row, weight=1)
-
-        self.log_text = scrolledtext.ScrolledText(log_container, height=12, wrap=tk.WORD,
-                                                  font=('Consolas', 9),
-                                                  bg='#F9FAFB',
-                                                  relief='flat',
-                                                  borderwidth=1,
-                                                  highlightthickness=1,
-                                                  highlightbackground=self.COLORS['border'],
-                                                  highlightcolor=self.COLORS['primary_light'])
+        self.log_text = scrolledtext.ScrolledText(log_container, height=8, wrap=tk.WORD, font=('Consolas', 8),
+                                                  bg='#F9FAFB', relief='flat', borderwidth=1,
+                                                  highlightthickness=1, highlightbackground=self.COLORS['border'])
         self.log_text.pack(fill=tk.BOTH, expand=True)
-        prog_row += 1
 
-        # Buttons
-        button_container = ttk.Frame(progress_card, style='Card.TFrame')
-        button_container.grid(row=prog_row, column=0, pady=(0, 0))
+        # ===== CARD 5: Actions (Row 2, Col 2) =====
+        actions_shadow, actions_card = self.create_card_with_shadow(main_frame, padding="12")
+        actions_shadow.grid(row=2, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
 
-        self.view_logs_button = ttk.Button(button_container, text="📁 View Log Files",
-                                          command=self.view_logs, style='Primary.TButton')
-        self.view_logs_button.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(actions_card, text="🎯 Actions", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
 
-        self.verify_button = ttk.Button(button_container, text="🔍 Verify Tickets",
-                                       command=self.verify_tickets, state=tk.DISABLED,
-                                       style='Success.TButton')
-        self.verify_button.pack(side=tk.LEFT)
+        self.view_logs_button = ttk.Button(actions_card, text="📁 View Logs", command=self.view_logs,
+                                          style='Primary.TButton')
+        self.view_logs_button.pack(fill=tk.X, pady=(0, 5))
 
-        prog_row += 1
+        self.verify_button = ttk.Button(actions_card, text="🔍 Verify Tickets", command=self.verify_tickets,
+                                       state=tk.DISABLED, style='Success.TButton')
+        self.verify_button.pack(fill=tk.X, pady=(0, 5))
 
-        # Verification status (hidden initially)
-        self.verify_status_frame = ttk.Frame(progress_card, style='Card.TFrame')
-        self.verify_status_frame.grid(row=prog_row, column=0, pady=(10, 0))
-        self.verify_status_frame.grid_remove()  # Hidden initially
+        self.verify_status_frame = ttk.Frame(actions_card, style='Card.TFrame')
+        self.verify_status_frame.pack(fill=tk.X, pady=(8, 0))
+        self.verify_status_frame.pack_forget()
 
-        self.verify_status_label = ttk.Label(self.verify_status_frame, text="",
-                                            style='Card.TLabel')
+        self.verify_status_label = ttk.Label(self.verify_status_frame, text="", font=('Segoe UI', 8), style='Card.TLabel')
         self.verify_status_label.pack()
 
     def load_configuration(self):
@@ -1827,22 +1626,14 @@ Success Rate: {summary['pass_rate']:.1f}%"""
                 fs_id_label.pack(anchor=tk.W, pady=(0, 10))
 
                 # Comparison table
-                comparison_text = f"{'Field':<20} {'Expected':<25} {'Actual':<25} {'Status':<10}\n"
+                comparison_text = f"{'Field':<30} {'Actual':<50}\n"
                 comparison_text += "-" * 80 + "\n"
 
                 for field_name, comparison in result['comparisons'].items():
                     field_label = field_name.replace('_', ' ').title()
-                    expected = str(comparison['expected'])[:24]
-                    actual = str(comparison['actual'])[:24]
+                    actual = str(comparison['actual'])[:48]
 
-                    if comparison.get('informational'):
-                        match_icon = "ℹ INFO"
-                    elif comparison['match']:
-                        match_icon = "✓ MATCH"
-                    else:
-                        match_icon = "✗ MISMATCH"
-
-                    comparison_text += f"{field_label:<20} {expected:<25} {actual:<25} {match_icon:<10}\n"
+                    comparison_text += f"{field_label:<30} {actual:<50}\n"
 
                 comparison_label = ttk.Label(
                     ticket_card,
