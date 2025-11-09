@@ -26,6 +26,19 @@ from utils import (
 from freshservice_client import FreshserviceClient, validate_freshservice_credentials
 from ticket_verifier import TicketVerifier
 from verification_logger import VerificationLogger
+from ui_components import (
+    ToastNotification,
+    LoadingSpinner,
+    PulsingButton,
+    ValidationEntry,
+    Tooltip,
+    CollapsibleFrame,
+    CharacterCounter,
+    HelpIcon,
+    ValidationHelper,
+    ProgressBarAnimator,
+    CardBorderValidator
+)
 
 
 class TicketGeneratorGUI:
@@ -142,9 +155,29 @@ class TicketGeneratorGUI:
         self.last_batch_start_time = None
         self.last_batch_log_file = None
 
+        # UI Components (initialized after widgets are created)
+        self.toast = None
+        self.progress_animator = None
+        self.config_card_validator = None
+        self.fs_card_validator = None
+        self.gen_card_validator = None
+        self.loading_spinner = None
+
+        # Window geometry persistence
+        self.window_config_file = os.path.join(os.getcwd(), ".window_config.json")
+
         # Create GUI
         self.create_widgets()
         self.load_configuration()
+
+        # Initialize UI components (after widgets exist)
+        self._initialize_ui_components()
+
+        # Setup keyboard shortcuts
+        self._setup_keyboard_shortcuts()
+
+        # Restore window position/size
+        self._restore_window_geometry()
 
         # Try to restore previous session (after widgets are created)
         self.root.after(100, self.restore_session)
@@ -395,27 +428,71 @@ class TicketGeneratorGUI:
         # ===== CARD 1: Configuration (Row 1, Col 0) =====
         config_shadow, config_card = self.create_card_with_shadow(main_frame, padding="12")
         config_shadow.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
+        self.config_card_frame = config_card  # Store reference for validation
 
-        ttk.Label(config_card, text="🔐 Configuration", font=('Segoe UI', 11, 'bold'),
-                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
+        # Header with help icon
+        header_frame = ttk.Frame(config_card, style='Card.TFrame')
+        header_frame.pack(anchor=tk.W, pady=(0, 8), fill=tk.X)
+
+        ttk.Label(header_frame, text="🔐 Configuration", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(side=tk.LEFT)
+
+        help_icon = HelpIcon(header_frame,
+                            "Azure AD and Claude API credentials.\nRequired for authentication and email generation.",
+                            self.COLORS)
+        help_icon.pack(side=tk.LEFT, padx=(5, 0))
 
         form_frame = ttk.Frame(config_card, style='Card.TFrame')
         form_frame.pack(fill=tk.BOTH)
 
-        ttk.Label(form_frame, text="Client ID:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(form_frame, textvariable=self.client_id, font=('Segoe UI', 8), width=25).grid(row=0, column=1, sticky=tk.W, pady=3)
+        # Client ID with validation and tooltip
+        client_label = ttk.Label(form_frame, text="Client ID:", font=('Segoe UI', 8), style='Card.TLabel')
+        client_label.grid(row=0, column=0, sticky=tk.W, pady=3)
+        self.client_id_entry = ValidationEntry(form_frame, validator=ValidationHelper.validate_uuid,
+                                              colors=self.COLORS, textvariable=self.client_id,
+                                              font=('Segoe UI', 8), width=25)
+        self.client_id_entry.get_frame().grid(row=0, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(client_label, "Azure Application (client) ID from Azure Portal")
 
-        ttk.Label(form_frame, text="Tenant ID:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(form_frame, textvariable=self.tenant_id, font=('Segoe UI', 8), width=25).grid(row=1, column=1, sticky=tk.W, pady=3)
+        # Tenant ID with validation and tooltip
+        tenant_label = ttk.Label(form_frame, text="Tenant ID:", font=('Segoe UI', 8), style='Card.TLabel')
+        tenant_label.grid(row=1, column=0, sticky=tk.W, pady=3)
+        self.tenant_id_entry = ValidationEntry(form_frame, validator=ValidationHelper.validate_uuid,
+                                              colors=self.COLORS, textvariable=self.tenant_id,
+                                              font=('Segoe UI', 8), width=25)
+        self.tenant_id_entry.get_frame().grid(row=1, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(tenant_label, "Azure Directory (tenant) ID from Azure Portal")
 
-        ttk.Label(form_frame, text="Sender:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(form_frame, textvariable=self.sender_email, font=('Segoe UI', 8), width=25).grid(row=2, column=1, sticky=tk.W, pady=3)
+        # Sender Email with validation and tooltip
+        sender_label = ttk.Label(form_frame, text="Sender:", font=('Segoe UI', 8), style='Card.TLabel')
+        sender_label.grid(row=2, column=0, sticky=tk.W, pady=3)
+        self.sender_email_entry = ValidationEntry(form_frame, validator=ValidationHelper.validate_email,
+                                                 colors=self.COLORS, textvariable=self.sender_email,
+                                                 font=('Segoe UI', 8), width=25)
+        self.sender_email_entry.get_frame().grid(row=2, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(sender_label, "Email address to send from (must have send permissions)")
 
-        ttk.Label(form_frame, text="Recipient:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=3, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(form_frame, textvariable=self.recipient_email, font=('Segoe UI', 8), width=25).grid(row=3, column=1, sticky=tk.W, pady=3)
+        # Recipient Email with validation and tooltip
+        recipient_label = ttk.Label(form_frame, text="Recipient:", font=('Segoe UI', 8), style='Card.TLabel')
+        recipient_label.grid(row=3, column=0, sticky=tk.W, pady=3)
+        self.recipient_email_entry = ValidationEntry(form_frame, validator=ValidationHelper.validate_email,
+                                                    colors=self.COLORS, textvariable=self.recipient_email,
+                                                    font=('Segoe UI', 8), width=25)
+        self.recipient_email_entry.get_frame().grid(row=3, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(recipient_label, "Email address to send test tickets to")
 
-        ttk.Label(form_frame, text="Claude Key:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=4, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(form_frame, textvariable=self.claude_api_key, show="•", font=('Segoe UI', 8), width=25).grid(row=4, column=1, sticky=tk.W, pady=3)
+        # Claude API Key with validation and tooltip
+        claude_label = ttk.Label(form_frame, text="Claude Key:", font=('Segoe UI', 8), style='Card.TLabel')
+        claude_label.grid(row=4, column=0, sticky=tk.W, pady=3)
+        self.claude_key_entry = ValidationEntry(form_frame,
+                                               validator=lambda k: ValidationHelper.validate_api_key(k, "sk-ant-"),
+                                               colors=self.COLORS, textvariable=self.claude_api_key,
+                                               show="•", font=('Segoe UI', 8), width=25)
+        self.claude_key_entry.get_frame().grid(row=4, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(claude_label, "Anthropic API key for Claude (get from console.anthropic.com)")
+
+        # Make form columns expandable
+        form_frame.columnconfigure(1, weight=1)
 
         auth_frame = ttk.Frame(config_card, style='Card.TFrame')
         auth_frame.pack(fill=tk.X, pady=(8, 0))
@@ -437,24 +514,42 @@ class TicketGeneratorGUI:
                                      foreground=self.COLORS['error'], font=('Segoe UI', 9, 'bold'))
         self.auth_status.pack(side=tk.LEFT)
 
-        # ===== CARD 2: Freshservice (Row 1, Col 1) =====
-        fs_shadow, fs_card = self.create_card_with_shadow(main_frame, padding="12")
+        # ===== CARD 2: Freshservice (Row 1, Col 1) - COLLAPSIBLE =====
+        fs_shadow, fs_card_outer = self.create_card_with_shadow(main_frame, padding="12")
         fs_shadow.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
+        self.fs_card_frame = fs_card_outer  # Store reference for validation
 
-        ttk.Label(fs_card, text="🔍 Freshservice", font=('Segoe UI', 11, 'bold'),
-                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
+        # Create collapsible frame
+        self.fs_collapsible = CollapsibleFrame(fs_card_outer, title="🔍 Freshservice (Optional)",
+                                              colors=self.COLORS, style='Card.TFrame')
+        self.fs_collapsible.pack(fill=tk.BOTH, expand=True)
+
+        # Get content frame for adding widgets
+        fs_card = self.fs_collapsible.get_content_frame()
 
         fs_form = ttk.Frame(fs_card, style='Card.TFrame')
-        fs_form.pack(fill=tk.BOTH)
+        fs_form.pack(fill=tk.BOTH, pady=(8, 0))
 
-        ttk.Label(fs_form, text="Domain:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(fs_form, textvariable=self.fs_domain, font=('Segoe UI', 8), width=25).grid(row=0, column=1, sticky=tk.W, pady=3)
+        # Domain with tooltip
+        domain_label = ttk.Label(fs_form, text="Domain:", font=('Segoe UI', 8), style='Card.TLabel')
+        domain_label.grid(row=0, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(fs_form, textvariable=self.fs_domain, font=('Segoe UI', 8), width=25).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(domain_label, "Your Freshservice domain (e.g., company.freshservice.com)")
 
-        ttk.Label(fs_form, text="API Key:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
-        ttk.Entry(fs_form, textvariable=self.fs_api_key, show="•", font=('Segoe UI', 8), width=25).grid(row=1, column=1, sticky=tk.W, pady=3)
+        # API Key with tooltip
+        api_key_label = ttk.Label(fs_form, text="API Key:", font=('Segoe UI', 8), style='Card.TLabel')
+        api_key_label.grid(row=1, column=0, sticky=tk.W, pady=3)
+        ttk.Entry(fs_form, textvariable=self.fs_api_key, show="•", font=('Segoe UI', 8), width=25).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=3)
+        Tooltip(api_key_label, "Freshservice API key for ticket verification")
 
-        ttk.Label(fs_form, text="Wait (min):", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=tk.W, pady=3)
+        # Wait time with tooltip
+        wait_label = ttk.Label(fs_form, text="Wait (min):", font=('Segoe UI', 8), style='Card.TLabel')
+        wait_label.grid(row=2, column=0, sticky=tk.W, pady=3)
         ttk.Spinbox(fs_form, from_=1, to=30, textvariable=self.fs_wait_time, width=8, font=('Segoe UI', 8)).grid(row=2, column=1, sticky=tk.W, pady=3)
+        Tooltip(wait_label, "Minutes to wait after sending before verifying tickets")
+
+        # Make form columns expandable
+        fs_form.columnconfigure(1, weight=1)
 
         fs_btn_frame = ttk.Frame(fs_card, style='Card.TFrame')
         fs_btn_frame.pack(fill=tk.X, pady=(8, 0))
@@ -479,14 +574,26 @@ class TicketGeneratorGUI:
         # ===== CARD 3: Generation Settings (Row 1, Col 2) =====
         gen_shadow, gen_card = self.create_card_with_shadow(main_frame, padding="12")
         gen_shadow.grid(row=1, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=4, padx=4)
+        self.gen_card_frame = gen_card  # Store reference for validation
 
-        ttk.Label(gen_card, text="⚙️ Generation", font=('Segoe UI', 11, 'bold'),
-                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(anchor=tk.W, pady=(0, 8))
+        # Header with help icon
+        gen_header_frame = ttk.Frame(gen_card, style='Card.TFrame')
+        gen_header_frame.pack(anchor=tk.W, pady=(0, 8), fill=tk.X)
+
+        ttk.Label(gen_header_frame, text="⚙️ Generation", font=('Segoe UI', 11, 'bold'),
+                 foreground=self.COLORS['primary'], background=self.COLORS['surface']).pack(side=tk.LEFT)
+
+        help_icon_gen = HelpIcon(gen_header_frame,
+                                "Email generation settings.\nControl quantity, quality, and content style.",
+                                self.COLORS)
+        help_icon_gen.pack(side=tk.LEFT, padx=(5, 0))
 
         gen_form = ttk.Frame(gen_card, style='Card.TFrame')
         gen_form.pack(fill=tk.BOTH)
 
-        ttk.Label(gen_form, text="Emails:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=0, column=0, sticky=tk.W, pady=3)
+        # Email count with tooltip
+        email_label = ttk.Label(gen_form, text="Emails:", font=('Segoe UI', 8), style='Card.TLabel')
+        email_label.grid(row=0, column=0, sticky=tk.W, pady=3)
         email_spin_frame = ttk.Frame(gen_form, style='Card.TFrame')
         email_spin_frame.grid(row=0, column=1, sticky=tk.W, pady=3)
         ttk.Spinbox(email_spin_frame, from_=1, to=1000, textvariable=self.num_emails, width=8, font=('Segoe UI', 8)).pack(side=tk.LEFT)
@@ -494,8 +601,11 @@ class TicketGeneratorGUI:
                                           font=('Segoe UI', 7), foreground=self.COLORS['text_secondary'],
                                           background=self.COLORS['surface'])
         self.next_ticket_label.pack(side=tk.LEFT, padx=(5, 0))
+        Tooltip(email_label, "Number of test emails to generate (1-1000)")
 
-        ttk.Label(gen_form, text="Quality:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=1, column=0, sticky=tk.W, pady=3)
+        # Quality with tooltip
+        quality_label = ttk.Label(gen_form, text="Quality:", font=('Segoe UI', 8), style='Card.TLabel')
+        quality_label.grid(row=1, column=0, sticky=tk.W, pady=3)
         quality_frame = ttk.Frame(gen_form, style='Card.TFrame')
         quality_frame.grid(row=1, column=1, sticky=tk.W, pady=3)
         ttk.Radiobutton(quality_frame, text="Basic", variable=self.writing_quality, value="basic",
@@ -504,24 +614,44 @@ class TicketGeneratorGUI:
                        style='Card.TRadiobutton').pack(side=tk.LEFT, padx=(0, 3))
         ttk.Radiobutton(quality_frame, text="Polished", variable=self.writing_quality, value="polished",
                        style='Card.TRadiobutton').pack(side=tk.LEFT)
+        Tooltip(quality_label, "Basic: 7th grade • Realistic: 10th grade • Polished: Professional")
 
-        ttk.Label(gen_form, text="Custom:", font=('Segoe UI', 8), style='Card.TLabel').grid(row=2, column=0, sticky=(tk.W, tk.N), pady=3)
+        # Custom instructions with tooltip and character counter
+        custom_label = ttk.Label(gen_form, text="Custom:", font=('Segoe UI', 8), style='Card.TLabel')
+        custom_label.grid(row=2, column=0, sticky=(tk.W, tk.N), pady=3)
         custom_frame = ttk.Frame(gen_form, style='Card.TFrame')
         custom_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=3)
 
-        self.custom_checkbox = ttk.Checkbutton(custom_frame, text="Override with custom",
+        checkbox_frame = ttk.Frame(custom_frame, style='Card.TFrame')
+        checkbox_frame.pack(anchor=tk.W, fill=tk.X)
+
+        self.custom_checkbox = ttk.Checkbutton(checkbox_frame, text="Override with custom",
                                               variable=self.use_custom_instructions, style='Card.TRadiobutton')
-        self.custom_checkbox.pack(anchor=tk.W)
+        self.custom_checkbox.pack(side=tk.LEFT)
+
+        # Character counter label
+        self.char_counter_label = ttk.Label(checkbox_frame, text="0 chars",
+                                           font=('Segoe UI', 7), foreground=self.COLORS['text_secondary'],
+                                           background=self.COLORS['surface'])
+        self.char_counter_label.pack(side=tk.RIGHT)
 
         custom_text_container = tk.Frame(custom_frame, bg='#F9FAFB', highlightthickness=1,
                                         highlightbackground=self.COLORS['border'])
-        custom_text_container.pack(fill=tk.BOTH, expand=True)
+        custom_text_container.pack(fill=tk.BOTH, expand=True, pady=(3, 0))
 
         self.custom_text = scrolledtext.ScrolledText(custom_text_container, height=3, wrap=tk.WORD,
                                                      font=('Segoe UI', 8), bg='#F9FAFB', relief='flat', borderwidth=0)
         self.custom_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.custom_text.insert('1.0', 'Example: Generate tickets about printer issues...')
         self.custom_text.bind('<FocusIn>', lambda e: self.custom_text.delete('1.0', tk.END) if self.custom_text.get('1.0', tk.END).strip().startswith('Example:') else None)
+
+        # Initialize character counter
+        self.char_counter = CharacterCounter(self.custom_text, self.char_counter_label, max_chars=500)
+
+        Tooltip(custom_label, "Provide custom instructions to override default generation behavior")
+
+        # Make form columns expandable
+        gen_form.columnconfigure(1, weight=1)
 
         self.generate_button = ttk.Button(gen_card, text="🚀 Generate & Send",
                                          command=self.generate_emails, state=tk.DISABLED, style='Success.TButton')
@@ -613,6 +743,111 @@ class TicketGeneratorGUI:
 
         except Exception as e:
             self.log(f"Error loading configuration: {str(e)}", "error")
+
+    def _initialize_ui_components(self):
+        """Initialize advanced UI components after widgets are created."""
+        # Toast notification system
+        self.toast = ToastNotification(self.root, self.COLORS)
+
+        # Progress bar animator
+        style = ttk.Style()
+        self.progress_animator = ProgressBarAnimator(self.progress, style, self.COLORS)
+
+        # Card border validators
+        if hasattr(self, 'config_card_frame'):
+            self.config_card_validator = CardBorderValidator(self.config_card_frame, self.COLORS)
+        if hasattr(self, 'fs_card_frame'):
+            self.fs_card_validator = CardBorderValidator(self.fs_card_frame, self.COLORS)
+        if hasattr(self, 'gen_card_frame'):
+            self.gen_card_validator = CardBorderValidator(self.gen_card_frame, self.COLORS)
+
+    def _setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for common actions."""
+        # Ctrl+G - Generate & Send
+        self.root.bind('<Control-g>', lambda e: self.generate_emails() if self.generate_button['state'] != tk.DISABLED else None)
+
+        # Ctrl+L - View Logs
+        self.root.bind('<Control-l>', lambda e: self.view_logs())
+
+        # Ctrl+V - Verify Tickets
+        self.root.bind('<Control-v>', lambda e: self.verify_tickets() if self.verify_button['state'] != tk.DISABLED else None)
+
+        # Ctrl+T - Toggle Theme
+        self.root.bind('<Control-t>', lambda e: self.toggle_theme())
+
+        # F5 - Reload Modules
+        self.root.bind('<F5>', lambda e: self.reload_modules())
+
+        # Ctrl+S - Save Configuration
+        self.root.bind('<Control-s>', lambda e: self._save_window_geometry())
+
+    def _restore_window_geometry(self):
+        """Restore window size and position from last session."""
+        try:
+            if os.path.exists(self.window_config_file):
+                import json
+                with open(self.window_config_file, 'r') as f:
+                    config = json.load(f)
+
+                width = config.get('width', 1400)
+                height = config.get('height', 900)
+                x = config.get('x')
+                y = config.get('y')
+
+                if x is not None and y is not None:
+                    self.root.geometry(f"{width}x{height}+{x}+{y}")
+                else:
+                    self.root.geometry(f"{width}x{height}")
+
+        except Exception as e:
+            # Silently fail and use defaults
+            pass
+
+        # Bind window close to save geometry
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _save_window_geometry(self):
+        """Save current window size and position."""
+        try:
+            import json
+
+            # Get current geometry
+            geometry = self.root.geometry()
+            # Parse: WIDTHxHEIGHT+X+Y
+            parts = geometry.replace('x', '+').split('+')
+            if len(parts) >= 4:
+                width, height, x, y = parts[:4]
+
+                config = {
+                    'width': int(width),
+                    'height': int(height),
+                    'x': int(x),
+                    'y': int(y)
+                }
+
+                with open(self.window_config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+
+                if hasattr(self, 'toast') and self.toast:
+                    self.toast.show("Window configuration saved", "success", 2000)
+
+        except Exception as e:
+            # Silently fail
+            pass
+
+    def _on_closing(self):
+        """Handle window closing event."""
+        # Save window geometry
+        self._save_window_geometry()
+
+        # Save session
+        self.save_session()
+
+        # Set shutdown flag
+        self.is_shutting_down = True
+
+        # Destroy window
+        self.root.destroy()
 
     def log(self, message, level="info"):
         """
@@ -774,6 +1009,13 @@ class TicketGeneratorGUI:
                             pass
                     self.log("Authentication successful", "ok")
 
+                    # Show toast notification
+                    if not self.is_shutting_down and self.toast:
+                        try:
+                            self.root.after(0, lambda: self.toast.show("Authentication successful!", "success", 3000))
+                        except RuntimeError:
+                            pass
+
                     # Save session for next time
                     if not self.is_shutting_down:
                         self.save_session()
@@ -785,6 +1027,8 @@ class TicketGeneratorGUI:
                     self.log("Authentication cancelled by user", "error")
                     try:
                         self.root.after(0, lambda: self.status_label.config(text="Authentication cancelled"))
+                        if self.toast:
+                            self.root.after(0, lambda: self.toast.show("Authentication cancelled", "warning", 3000))
                     except RuntimeError:
                         pass
             except Exception as e:
@@ -793,6 +1037,8 @@ class TicketGeneratorGUI:
                     self.log(f"Authentication failed: {error_msg}", "error")
                     try:
                         self.root.after(0, lambda: messagebox.showerror("Authentication Error", error_msg))
+                        if self.toast:
+                            self.root.after(0, lambda: self.toast.show("Authentication failed", "error", 3000))
                     except RuntimeError:
                         pass
             finally:
@@ -832,6 +1078,10 @@ class TicketGeneratorGUI:
         # Disable button during generation
         self.generate_button.config(state=tk.DISABLED)
         self.progress['value'] = 0
+
+        # Reset progress bar color
+        if self.progress_animator:
+            self.progress_animator.reset()
 
         def generate_thread():
             try:
@@ -1058,6 +1308,15 @@ class TicketGeneratorGUI:
                     wait_time = self.fs_wait_time.get()
                     self.log(f"\n🔍 Verification available - wait {wait_time} min for best results, then click 'Verify Tickets'", "info")
 
+                # Animate progress bar to green on completion
+                if self.progress_animator:
+                    self.root.after(0, lambda: self.progress_animator.complete())
+
+                # Show toast notification
+                if self.toast:
+                    self.root.after(0, lambda sc=success_count: self.toast.show(
+                        f"Batch complete! {sc} emails sent successfully", "success", 5000))
+
                 self.root.after(0, lambda: self.status_label.config(text="✓ Batch completed successfully!"))
                 self.root.after(0, lambda: messagebox.showinfo("✓ Batch Complete",
                     f"Successfully completed email generation!\n\n"
@@ -1114,6 +1373,10 @@ class TicketGeneratorGUI:
                     self.log("Freshservice connection successful", "ok")
                     self.log("🔍 Verify button enabled - you can verify any of your last 10 tickets!", "ok")
 
+                    # Show toast notification
+                    if self.toast:
+                        self.root.after(0, lambda: self.toast.show("Freshservice connected successfully!", "success", 3000))
+
                     # Save session for next time
                     self.save_session()
                 else:
@@ -1127,6 +1390,10 @@ class TicketGeneratorGUI:
                     text="Connection Failed",
                     foreground=self.COLORS['error']))
                 self.root.after(0, lambda: messagebox.showerror("Connection Error", str(e)))
+
+                # Show toast notification for error
+                if self.toast:
+                    self.root.after(0, lambda: self.toast.show("Freshservice connection failed", "error", 3000))
             finally:
                 self.root.after(0, lambda: self.fs_test_button.config(state=tk.NORMAL))
 
