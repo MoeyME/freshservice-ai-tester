@@ -7,6 +7,10 @@ import requests
 from typing import List, Dict, Optional
 from datetime import datetime
 import time
+import urllib3
+
+# Disable SSL warnings for corporate networks with self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class FreshserviceClient:
@@ -41,7 +45,8 @@ class FreshserviceClient:
                 f"{self.base_url}/tickets",
                 auth=self.auth,
                 params={'per_page': 1},
-                timeout=10
+                timeout=10,
+                verify=False
             )
             return response.status_code == 200
         except Exception as e:
@@ -86,7 +91,8 @@ class FreshserviceClient:
                     f"{self.base_url}/tickets",
                     auth=self.auth,
                     params=params,
-                    timeout=30
+                    timeout=30,
+                    verify=False
                 )
 
                 if response.status_code != 200:
@@ -129,7 +135,8 @@ class FreshserviceClient:
             response = requests.get(
                 f"{self.base_url}/tickets/{ticket_id}",
                 auth=self.auth,
-                timeout=10
+                timeout=10,
+                verify=False
             )
 
             if response.status_code == 200:
@@ -207,7 +214,8 @@ class FreshserviceClient:
                     f"{self.base_url}/tickets",
                     auth=self.auth,
                     params=params,
-                    timeout=30
+                    timeout=30,
+                    verify=False
                 )
 
                 if response.status_code != 200:
@@ -244,7 +252,8 @@ class FreshserviceClient:
             response = requests.get(
                 f"{self.base_url}/ticket_fields",
                 auth=self.auth,
-                timeout=10
+                timeout=10,
+                verify=False
             )
 
             if response.status_code == 200:

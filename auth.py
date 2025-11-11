@@ -5,6 +5,19 @@ Handles OAuth flow for sending emails via Microsoft Graph API.
 
 from typing import Optional
 import msal
+import requests
+import urllib3
+
+# Disable SSL warnings for corporate networks with self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Patch requests to disable SSL verification for MSAL (which uses requests internally)
+# This is needed for corporate networks with self-signed certificates
+_original_request = requests.Session.request
+def _patched_request(self, *args, **kwargs):
+    kwargs.setdefault('verify', False)
+    return _original_request(self, *args, **kwargs)
+requests.Session.request = _patched_request
 
 
 class GraphAuthenticator:
@@ -69,16 +82,16 @@ class GraphAuthenticator:
         except KeyboardInterrupt:
             print("\n[CANCELLED] Authentication cancelled by user.")
             raise Exception("Authentication cancelled by user")
-        except Exception as e:
-            print(f"\n[ERROR] Authentication error: {str(e)}")
-            raise Exception(f"Authentication error: {str(e)}")
 
+        # Check if authentication succeeded
         if "access_token" in result:
             self.access_token = result["access_token"]
             print("[OK] Authentication successful!\n")
             return self.access_token
         else:
+            # Authentication failed - check for specific error
             error_msg = result.get("error_description", result.get("error", "Unknown error"))
+            print(f"\n[ERROR] Authentication failed: {error_msg}")
             raise Exception(f"Authentication failed: {error_msg}")
 
     def authenticate_client_credentials(self) -> str:

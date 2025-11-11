@@ -5,6 +5,10 @@ Email sending functionality using Microsoft Graph API.
 import requests
 import time
 from typing import Dict, Optional
+import urllib3
+
+# Disable SSL warnings for corporate networks with self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class EmailSender:
@@ -83,7 +87,8 @@ class EmailSender:
                 endpoint,
                 headers=self.headers,
                 json=email_message,
-                timeout=30
+                timeout=30,
+                verify=False
             )
 
             if response.status_code == 202:
@@ -182,7 +187,7 @@ class EmailSender:
         """
         try:
             endpoint = f"{self.GRAPH_ENDPOINT}/me"
-            response = requests.get(endpoint, headers=self.headers, timeout=10)
+            response = requests.get(endpoint, headers=self.headers, timeout=10, verify=False)
 
             if response.status_code == 200:
                 user_data = response.json()

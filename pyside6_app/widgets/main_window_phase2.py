@@ -917,6 +917,11 @@ class MainWindow(QMainWindow):
             self.activity_log.set_status("Verification complete", "success")
             self.last_action_label.setText(f"Last: Verified {found_count} tickets")
 
+            # Show detailed results dialog
+            from .verification_dialog import VerificationDialog
+            dialog = VerificationDialog(verification_results, self)
+            dialog.show()
+
             if not_found_count == 0 and failed_count == 0:
                 InfoBar.success(
                     title="Verification Complete",
@@ -928,7 +933,7 @@ class MainWindow(QMainWindow):
             elif not_found_count > 0:
                 InfoBar.warning(
                     title="Verification Partial",
-                    content=f"{not_found_count} tickets not found in Freshservice. See activity log.",
+                    content=f"{not_found_count} tickets not found in Freshservice. See details window.",
                     parent=self,
                     duration=5000,
                     position=InfoBarPosition.TOP_RIGHT
@@ -936,7 +941,7 @@ class MainWindow(QMainWindow):
             else:
                 InfoBar.warning(
                     title="Verification Complete",
-                    content=f"{passed_count} passed, {failed_count} failed. See activity log.",
+                    content=f"{passed_count} passed, {failed_count} failed. See details window.",
                     parent=self,
                     duration=5000,
                     position=InfoBarPosition.TOP_RIGHT
