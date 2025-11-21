@@ -4,14 +4,14 @@ Verification Results Dialog - Shows detailed ticket verification information.
 
 from typing import Dict, List
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QDialog
 from qfluentwidgets import (
-    FluentWindow, SubtitleLabel, BodyLabel, PushButton, FluentIcon,
+    SubtitleLabel, BodyLabel, PushButton, FluentIcon,
     TableWidget, isDarkTheme
 )
 
 
-class VerificationDialog(FluentWindow):
+class VerificationDialog(QDialog):
     """
     Dialog showing detailed verification results for each ticket.
 
@@ -36,15 +36,14 @@ class VerificationDialog(FluentWindow):
             verification_results: Results from TicketVerifier.verify_batch()
             parent: Parent widget
         """
-        super().__init__()
+        super().__init__(parent)
         self.verification_results = verification_results
 
         self.setWindowTitle("Verification Results")
         self.resize(1200, 800)
 
-        # Create main widget
-        main_widget = QWidget()
-        layout = QVBoxLayout(main_widget)
+        # Create main layout
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
@@ -66,12 +65,9 @@ class VerificationDialog(FluentWindow):
         # Close button
         close_button = PushButton("Close")
         close_button.setIcon(FluentIcon.CLOSE)
-        close_button.clicked.connect(self.close)
+        close_button.clicked.connect(self.accept)
         close_button.setFixedWidth(100)
         layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
-
-        # Set central widget
-        self.addSubInterface(main_widget, "verification", "Verification")
 
     def _create_summary_widget(self) -> QWidget:
         """Create summary statistics widget."""

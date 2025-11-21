@@ -60,7 +60,8 @@ class GenerationCard(ElevatedCardWidget):
         email_count_row = QHBoxLayout()
         self.email_count_spinbox = SpinBox()
         self.email_count_spinbox.setRange(1, 1000)
-        self.email_count_spinbox.setFixedWidth(120)
+        self.email_count_spinbox.setMinimumWidth(80)
+        self.email_count_spinbox.setMaximumWidth(120)
         self.email_count_spinbox.setValue(5)  # Set default value
         email_count_row.addWidget(self.email_count_spinbox)
 
@@ -103,7 +104,8 @@ class GenerationCard(ElevatedCardWidget):
         self.wait_time_spinbox.setRange(0, 60000)
         self.wait_time_spinbox.setValue(10)  # Set default value
         self.wait_time_spinbox.setSingleStep(10)  # Increment by 10ms
-        self.wait_time_spinbox.setFixedWidth(120)
+        self.wait_time_spinbox.setMinimumWidth(80)
+        self.wait_time_spinbox.setMaximumWidth(120)
         wait_time_row.addWidget(self.wait_time_spinbox)
 
         wait_time_label = CaptionLabel("milliseconds between emails")
@@ -117,7 +119,7 @@ class GenerationCard(ElevatedCardWidget):
         self.mode_segment = SegmentedWidget()
         self.mode_segment.addItem("guided", "Guided (from categories)", onClick=None)
         self.mode_segment.addItem("custom", "Custom (free-form prompt)", onClick=None)
-        self.mode_segment.setFixedWidth(500)
+        self.mode_segment.setMaximumWidth(500)  # Allow shrinking on smaller screens
         mode_row.addWidget(self.mode_segment)
 
         self.mode_description = CaptionLabel("Guided: Generate tickets based on categories from CSV file")

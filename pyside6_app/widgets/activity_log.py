@@ -31,7 +31,7 @@ class ActivityLogWidget(ElevatedCardWidget):
         """
         super().__init__(parent)
 
-        self.setFixedHeight(600)  # Fit on one page
+        self.setMinimumHeight(300)  # Minimum to show content, allows expansion
 
         # Create UI
         layout = QVBoxLayout(self)

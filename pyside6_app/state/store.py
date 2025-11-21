@@ -276,7 +276,9 @@ class StateStore(QObject):
                 try:
                     with open(counter_file, 'r', encoding='utf-8') as f:
                         counter_data = json.load(f)
-                        self._state.generation.next_ticket_number = counter_data.get('counter', 1)
+                        # Old format uses 'last_ticket_number', next is +1
+                        last_num = counter_data.get('last_ticket_number', 0)
+                        self._state.generation.next_ticket_number = last_num + 1
                 except Exception:
                     pass
 

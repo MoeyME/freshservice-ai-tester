@@ -7,15 +7,21 @@ from typing import Optional
 import msal
 import requests
 import urllib3
+import os
 
 # Disable SSL warnings for corporate networks with self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Disable SSL verification globally for corporate networks
+# This affects all requests including MSAL internal polling
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 # Patch requests to disable SSL verification for MSAL (which uses requests internally)
 # This is needed for corporate networks with self-signed certificates
 _original_request = requests.Session.request
 def _patched_request(self, *args, **kwargs):
-    kwargs.setdefault('verify', False)
+    kwargs['verify'] = False  # Force disable, not just default
     return _original_request(self, *args, **kwargs)
 requests.Session.request = _patched_request
 
@@ -55,10 +61,17 @@ class GraphAuthenticator:
         Raises:
             Exception: If authentication fails
         """
-        # Create a public client application
+        # Create custom HTTP client that disables SSL verification
+        # This is needed for corporate networks with self-signed certificates
+        import requests
+        http_client = requests.Session()
+        http_client.verify = False
+
+        # Create a public client application with custom HTTP client
         self.app = msal.PublicClientApplication(
             client_id=self.client_id,
-            authority=self.authority
+            authority=self.authority,
+            http_client=http_client
         )
 
         # Initiate device flow
@@ -77,11 +90,16 @@ class GraphAuthenticator:
         print("="*60 + "\n")
 
         # Wait for user to authenticate
+        # The device flow will poll until user authenticates or timeout (default ~15 min)
+        print("[INFO] Waiting for authentication... (polling every 5 seconds)")
         try:
             result = self.app.acquire_token_by_device_flow(flow)
         except KeyboardInterrupt:
             print("\n[CANCELLED] Authentication cancelled by user.")
             raise Exception("Authentication cancelled by user")
+        except Exception as e:
+            print(f"\n[ERROR] Network error during authentication polling: {e}")
+            raise Exception(f"Network error during authentication: {e}")
 
         # Check if authentication succeeded
         if "access_token" in result:
@@ -90,8 +108,21 @@ class GraphAuthenticator:
             return self.access_token
         else:
             # Authentication failed - check for specific error
-            error_msg = result.get("error_description", result.get("error", "Unknown error"))
-            print(f"\n[ERROR] Authentication failed: {error_msg}")
+            error = result.get("error", "unknown_error")
+            error_msg = result.get("error_description", "Unknown error")
+
+            # Provide helpful messages for common errors
+            if "expired" in error_msg.lower() or "expired" in error.lower():
+                print(f"\n[ERROR] Device code expired. Please try again and complete authentication faster.")
+            elif "cancel" in error_msg.lower() or "cancel" in error.lower():
+                print(f"\n[ERROR] Authentication was cancelled or timed out.")
+                print("        This can happen if:")
+                print("        - The device code expired (15 minute timeout)")
+                print("        - Network issues prevented polling from detecting your login")
+                print("        - You cancelled in the browser")
+            else:
+                print(f"\n[ERROR] Authentication failed: {error_msg}")
+
             raise Exception(f"Authentication failed: {error_msg}")
 
     def authenticate_client_credentials(self) -> str:

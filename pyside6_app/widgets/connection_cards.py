@@ -39,7 +39,7 @@ class MicrosoftCard(ElevatedCardWidget):
         super().__init__(parent)
         self.state_store = state_store
 
-        self.setFixedHeight(400)
+        self.setMinimumHeight(380)  # Minimum to show content, allows expansion
 
         # Create UI
         layout = QVBoxLayout(self)
@@ -267,7 +267,7 @@ class FreshserviceCard(ElevatedCardWidget):
         super().__init__(parent)
         self.state_store = state_store
 
-        self.setFixedHeight(280)
+        self.setMinimumHeight(220)  # Minimum to show content, allows expansion
 
         # Create UI
         layout = QVBoxLayout(self)

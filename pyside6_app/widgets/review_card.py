@@ -4,7 +4,8 @@ Review card with draft table and bulk actions.
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QHeaderView
+    QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QHeaderView,
+    QScrollArea, QSizePolicy
 )
 from qfluentwidgets import (
     ElevatedCardWidget, TableWidget, PushButton, IndeterminateProgressBar,
@@ -52,37 +53,53 @@ class ReviewCard(ElevatedCardWidget):
 
         # Header with actions
         header_row = QHBoxLayout()
+        header_row.setSpacing(8)
 
         header_label = SubtitleLabel("Draft Review")
         header_row.addWidget(header_label)
 
-        header_row.addStretch()
+        # Scrollable button container for smaller screens
+        button_scroll = QScrollArea()
+        button_scroll.setWidgetResizable(True)
+        button_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        button_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        button_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        button_scroll.setMaximumHeight(40)
+        button_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setSpacing(8)
 
         # Action buttons
         self.select_all_button = PushButton("Select All")
         self.select_all_button.setIcon(FluentIcon.ACCEPT)
         self.select_all_button.clicked.connect(self.select_all_clicked.emit)
-        header_row.addWidget(self.select_all_button)
+        button_layout.addWidget(self.select_all_button)
 
         self.select_none_button = PushButton("Select None")
         self.select_none_button.setIcon(FluentIcon.CANCEL)
         self.select_none_button.clicked.connect(self.select_none_clicked.emit)
-        header_row.addWidget(self.select_none_button)
+        button_layout.addWidget(self.select_none_button)
 
         self.view_all_button = PushButton("View All Details")
         self.view_all_button.setIcon(FluentIcon.DOCUMENT)
         self.view_all_button.clicked.connect(self.view_all_clicked.emit)
-        header_row.addWidget(self.view_all_button)
+        button_layout.addWidget(self.view_all_button)
 
         self.export_button = PushButton("Export CSV")
         self.export_button.setIcon(FluentIcon.SAVE)
         self.export_button.clicked.connect(self.export_csv_clicked.emit)
-        header_row.addWidget(self.export_button)
+        button_layout.addWidget(self.export_button)
 
         self.mark_ready_button = PushButton("Mark Ready")
         self.mark_ready_button.setIcon(FluentIcon.COMPLETED)
         self.mark_ready_button.clicked.connect(self.mark_ready_clicked.emit)
-        header_row.addWidget(self.mark_ready_button)
+        button_layout.addWidget(self.mark_ready_button)
+
+        button_scroll.setWidget(button_container)
+        header_row.addWidget(button_scroll)
 
         layout.addLayout(header_row)
 
@@ -98,21 +115,21 @@ class ReviewCard(ElevatedCardWidget):
             "ID", "Type", "Priority", "Category", "Subject", "Status", "Recipient"
         ])
 
-        # Set column widths
+        # Set column widths - optimized for smaller screens
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 60)
+        header.resizeSection(0, 40)   # ID - compact
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(1, 120)
+        header.resizeSection(1, 70)   # Type - reduced
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(2, 100)
+        header.resizeSection(2, 70)   # Priority - reduced
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(3, 150)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        header.resizeSection(3, 100)  # Category - reduced
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Subject - gets remaining space
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(5, 100)
+        header.resizeSection(5, 60)   # Status - reduced
         header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(6, 200)
+        header.resizeSection(6, 150)  # Recipient - reduced
 
         # Enable selection
         self.table.setSelectionBehavior(TableWidget.SelectionBehavior.SelectRows)

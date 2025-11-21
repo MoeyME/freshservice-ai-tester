@@ -6,11 +6,11 @@ Complete with generation and review cards integrated.
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QScrollArea, QSpacerItem, QSizePolicy, QFileDialog, QMenuBar, QMenu
+    QScrollArea, QSpacerItem, QSizePolicy, QFileDialog, QMenuBar, QMenu, QApplication
 )
 from qfluentwidgets import (
     PushButton, CaptionLabel, FluentIcon, MessageBox, InfoBar, InfoBarPosition,
-    setTheme, Theme, isDarkTheme
+    setTheme, Theme, isDarkTheme, TableWidget
 )
 
 from ..state.store import StateStore
@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
 
         # Set window properties
         self.setWindowTitle("IT Ticket Email Generator")
-        self.setMinimumSize(1280, 720)
+        self.setMinimumSize(960, 600)  # Reduced for smaller screens
 
         # Restore window geometry from state
         geometry = state_store.state.ui.window_geometry
@@ -66,8 +66,11 @@ class MainWindow(QMainWindow):
         self._init_ui()
         self._init_connections()
 
-        # Apply initial theme
-        theme_manager.set_theme(state_store.state.ui.theme)
+        # Theme is already applied in app.py before window creation
+        # Just ensure state is synced
+        current_mode = theme_manager.get_current_mode()
+        if current_mode != state_store.state.ui.theme:
+            theme_manager.set_theme(state_store.state.ui.theme)
 
     def _init_ui(self):
         """Initialize the user interface."""
@@ -131,6 +134,7 @@ class MainWindow(QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll_area.setMinimumWidth(260)  # Ensure sidebar remains readable with full titles
 
         container = QWidget()
         container_layout = QVBoxLayout(container)
@@ -155,6 +159,12 @@ class MainWindow(QMainWindow):
 
     def _create_center_workspace(self, layout: QGridLayout):
         """Create center workspace with generation and review cards."""
+        # Wrap in scroll area for smaller screens
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setSpacing(16)
@@ -168,16 +178,25 @@ class MainWindow(QMainWindow):
         self.review_card = ReviewCard(self.state_store, self)
         center_layout.addWidget(self.review_card)
 
-        layout.addWidget(center_widget, 1, 3, 1, 6)
+        scroll_area.setWidget(center_widget)
+        layout.addWidget(scroll_area, 1, 3, 1, 6)
 
     def _create_right_rail(self, layout: QGridLayout):
         """Create right rail with activity log."""
+        # Wrap in scroll area for smaller screens
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll_area.setMinimumWidth(200)  # Ensure sidebar remains readable
+
         # Activity log widget
         self.activity_log = ActivityLogWidget(self)
         self.activity_log.add_info("Application started")
         self.activity_log.set_status("Ready", "success")
 
-        layout.addWidget(self.activity_log, 1, 9, 1, 3)
+        scroll_area.setWidget(self.activity_log)
+        layout.addWidget(scroll_area, 1, 9, 1, 3)
 
     def _create_sticky_footer(self, layout: QGridLayout):
         """Create sticky footer with status and primary CTA."""
@@ -211,14 +230,14 @@ class MainWindow(QMainWindow):
         # Confirm & Send button (disabled by default)
         self.confirm_send_button = PushButton("Confirm & Send")
         self.confirm_send_button.setEnabled(False)
-        self.confirm_send_button.setFixedWidth(140)
+        self.confirm_send_button.setMinimumWidth(100)  # Allow shrinking but set minimum
         footer_layout.addWidget(self.confirm_send_button)
 
         # Verify Tickets button (disabled by default)
         self.verify_button = PushButton("Verify Tickets")
         self.verify_button.setIcon(FluentIcon.SEARCH)
         self.verify_button.setEnabled(False)
-        self.verify_button.setFixedWidth(140)
+        self.verify_button.setMinimumWidth(100)  # Allow shrinking but set minimum
         footer_layout.addWidget(self.verify_button)
 
         layout.addWidget(footer, 2, 0, 1, 12)
@@ -1032,7 +1051,64 @@ class MainWindow(QMainWindow):
         self.state_store.update_state(lambda s: setattr(s.ui, 'theme', mode))
 
         # Refresh activity log colors for new theme
-        self.activity_log.refresh_theme()
+        if hasattr(self, 'activity_log'):
+            self.activity_log.refresh_theme()
+        
+        # Force update all widgets to apply new theme
+        # This is critical for qfluentwidgets to properly apply themes
+        self._refresh_all_widgets()
+    
+    def _refresh_all_widgets(self):
+        """Force refresh all widgets to apply theme changes."""
+        # Update the main window
+        self.update()
+        self.repaint()
+        
+        # Update central widget and all children
+        if hasattr(self, 'centralWidget'):
+            central = self.centralWidget()
+            if central:
+                central.update()
+                central.repaint()
+                # Recursively update all child widgets
+                self._update_widget_tree(central)
+    
+    def _update_widget_tree(self, widget):
+        """Recursively update widget tree."""
+        try:
+            # Skip TableWidget as it has a different update() signature
+            if isinstance(widget, TableWidget):
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.repaint()
+            else:
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
+        except Exception:
+            # If polish/unpolish fails, just try to repaint
+            try:
+                widget.repaint()
+            except Exception:
+                pass
+        
+        for child in widget.findChildren(QWidget):
+            try:
+                # Skip TableWidget as it has a different update() signature
+                if isinstance(child, TableWidget):
+                    child.style().unpolish(child)
+                    child.style().polish(child)
+                    child.repaint()
+                else:
+                    child.style().unpolish(child)
+                    child.style().polish(child)
+                    child.update()
+            except Exception:
+                # If polish/unpolish fails, just try to repaint
+                try:
+                    child.repaint()
+                except Exception:
+                    pass
 
     # Helper methods
     def _get_claude_key(self) -> str:

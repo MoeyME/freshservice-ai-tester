@@ -5,6 +5,7 @@ Main application bootstrap.
 import sys
 import traceback
 from pathlib import Path
+from datetime import datetime
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
 
@@ -41,6 +42,10 @@ class Application:
 
         # Initialize theme manager
         self.theme_manager = ThemeManager()
+        
+        # Set initial theme BEFORE creating window (important for proper theme application)
+        initial_theme = self.state_store.state.ui.theme
+        self.theme_manager.set_theme(initial_theme)
 
         # Import MainWindow after QApplication is created
         from .widgets.main_window_phase2 import MainWindow
@@ -86,7 +91,7 @@ class Application:
         try:
             with open(log_file, 'a', encoding='utf-8') as f:
                 f.write(f"\n{'='*80}\n")
-                f.write(f"Crash at: {Path.now().isoformat()}\n")
+                f.write(f"Crash at: {datetime.now().isoformat()}\n")
                 f.write(tb_text)
                 f.write(f"{'='*80}\n")
         except Exception:
