@@ -63,6 +63,7 @@ class GenerationCard(ElevatedCardWidget):
         self.email_count_spinbox.setMinimumWidth(80)
         self.email_count_spinbox.setMaximumWidth(120)
         self.email_count_spinbox.setValue(5)  # Set default value
+        self.email_count_spinbox.setToolTip("Number of test emails to generate (1-1000)")
         email_count_row.addWidget(self.email_count_spinbox)
 
         self.email_count_label = CaptionLabel("emails")
@@ -106,6 +107,7 @@ class GenerationCard(ElevatedCardWidget):
         self.wait_time_spinbox.setSingleStep(10)  # Increment by 10ms
         self.wait_time_spinbox.setMinimumWidth(80)
         self.wait_time_spinbox.setMaximumWidth(120)
+        self.wait_time_spinbox.setToolTip("Delay between sending each email in milliseconds")
         wait_time_row.addWidget(self.wait_time_spinbox)
 
         wait_time_label = CaptionLabel("milliseconds between emails")
@@ -120,6 +122,7 @@ class GenerationCard(ElevatedCardWidget):
         self.mode_segment.addItem("guided", "Guided (from categories)", onClick=None)
         self.mode_segment.addItem("custom", "Custom (free-form prompt)", onClick=None)
         self.mode_segment.setMaximumWidth(500)  # Allow shrinking on smaller screens
+        self.mode_segment.setToolTip("Guided: Use categories.csv | Custom: Free-form AI prompt")
         mode_row.addWidget(self.mode_segment)
 
         self.mode_description = CaptionLabel("Guided: Generate tickets based on categories from CSV file")
@@ -142,6 +145,7 @@ class GenerationCard(ElevatedCardWidget):
 
         self.lint_prompt_button = PushButton("Lint Prompt", self)
         self.lint_prompt_button.setIcon(FluentIcon.SEARCH)
+        self.lint_prompt_button.setToolTip("Check prompt for common issues")
         custom_header_row.addWidget(self.lint_prompt_button)
 
         custom_prompt_layout.addLayout(custom_header_row)
@@ -152,6 +156,7 @@ class GenerationCard(ElevatedCardWidget):
             "frustrated because printing is urgent for customer quotes..."
         )
         self.custom_prompt_text.setFixedHeight(100)
+        self.custom_prompt_text.setToolTip("Describe the scenario for AI to generate (max 5000 chars)")
         custom_prompt_layout.addWidget(self.custom_prompt_text)
 
         self.char_count_label = CaptionLabel("0 / 5000 characters")
@@ -165,14 +170,17 @@ class GenerationCard(ElevatedCardWidget):
 
         self.preview_button = PushButton("Preview")
         self.preview_button.setIcon(FluentIcon.VIEW)
+        self.preview_button.setToolTip("Generate 3 sample emails to review before full batch (Ctrl+P)")
         button_row.addWidget(self.preview_button)
 
         self.generate_button = PrimaryPushButton("Generate Draft")
         self.generate_button.setIcon(FluentIcon.SEND)
+        self.generate_button.setToolTip("Generate all draft emails using Claude AI (Ctrl+G)")
         button_row.addWidget(self.generate_button)
 
         self.clear_button = PushButton("Clear")
         self.clear_button.setIcon(FluentIcon.DELETE)
+        self.clear_button.setToolTip("Remove all generated drafts")
         button_row.addWidget(self.clear_button)
 
         button_row.addStretch()

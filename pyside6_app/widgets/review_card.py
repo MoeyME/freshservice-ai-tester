@@ -14,6 +14,8 @@ from qfluentwidgets import (
 
 from ..state.store import StateStore
 from ..state.models import DraftEmail, EmailStatus
+from .progress_card import ProgressCard
+from .empty_state import EmptyState
 
 
 class ReviewCard(ElevatedCardWidget):
@@ -34,6 +36,8 @@ class ReviewCard(ElevatedCardWidget):
     select_all_clicked = Signal()
     select_none_clicked = Signal()
     mark_ready_clicked = Signal()
+    preview_clicked = Signal()  # For empty state action
+    cancel_generation = Signal()  # For progress card cancel
 
     def __init__(self, state_store: StateStore, parent: QWidget = None):
         """
@@ -75,26 +79,31 @@ class ReviewCard(ElevatedCardWidget):
         # Action buttons
         self.select_all_button = PushButton("Select All")
         self.select_all_button.setIcon(FluentIcon.ACCEPT)
+        self.select_all_button.setToolTip("Select all drafts in table (Ctrl+A)")
         self.select_all_button.clicked.connect(self.select_all_clicked.emit)
         button_layout.addWidget(self.select_all_button)
 
         self.select_none_button = PushButton("Select None")
         self.select_none_button.setIcon(FluentIcon.CANCEL)
+        self.select_none_button.setToolTip("Clear selection (Escape)")
         self.select_none_button.clicked.connect(self.select_none_clicked.emit)
         button_layout.addWidget(self.select_none_button)
 
         self.view_all_button = PushButton("View All Details")
         self.view_all_button.setIcon(FluentIcon.DOCUMENT)
+        self.view_all_button.setToolTip("Open all drafts in browser as HTML report")
         self.view_all_button.clicked.connect(self.view_all_clicked.emit)
         button_layout.addWidget(self.view_all_button)
 
         self.export_button = PushButton("Export CSV")
         self.export_button.setIcon(FluentIcon.SAVE)
+        self.export_button.setToolTip("Export drafts to CSV file (Ctrl+E)")
         self.export_button.clicked.connect(self.export_csv_clicked.emit)
         button_layout.addWidget(self.export_button)
 
         self.mark_ready_button = PushButton("Mark Ready")
         self.mark_ready_button.setIcon(FluentIcon.COMPLETED)
+        self.mark_ready_button.setToolTip("Mark selected drafts as ready to send")
         self.mark_ready_button.clicked.connect(self.mark_ready_clicked.emit)
         button_layout.addWidget(self.mark_ready_button)
 
@@ -103,10 +112,25 @@ class ReviewCard(ElevatedCardWidget):
 
         layout.addLayout(header_row)
 
-        # Progress bar (shown during generation)
+        # Legacy progress bar (kept for backwards compatibility)
         self.progress_bar = IndeterminateProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
+
+        # Enhanced progress card
+        self.progress_card = ProgressCard()
+        self.progress_card.cancel_clicked.connect(self._on_cancel_clicked)
+        layout.addWidget(self.progress_card)
+
+        # Empty state (shown when no drafts)
+        self.empty_state = EmptyState(
+            icon=EmptyState.ICON_MAIL,
+            title="No Drafts Yet",
+            description="Generate test emails using the settings above, or click Preview to see samples first.",
+            action_text="Generate Preview"
+        )
+        self.empty_state.action_clicked.connect(self.preview_clicked.emit)
+        layout.addWidget(self.empty_state)
 
         # Table
         self.table = TableWidget()
@@ -208,8 +232,14 @@ class ReviewCard(ElevatedCardWidget):
             recipient_item = QTableWidgetItem(str(draft.recipient))
             self.table.setItem(row, 6, recipient_item)
 
-        # Update status label
+        # Update status label and toggle empty state
         count = len(drafts)
+        has_drafts = count > 0
+
+        # Show/hide empty state vs table
+        self.empty_state.setVisible(not has_drafts)
+        self.table.setVisible(has_drafts)
+
         if count == 0:
             self.status_label.setText("No drafts")
         else:
@@ -320,12 +350,46 @@ class ReviewCard(ElevatedCardWidget):
         self.table.setRowCount(0)
         self.status_label.setText("No drafts")
 
-    def show_progress(self):
-        """Show progress bar."""
-        self.progress_bar.setVisible(True)
-        self.progress_bar.start()
+    def _on_cancel_clicked(self):
+        """Handle cancel button click from progress card."""
+        self.cancel_generation.emit()
+
+    def show_progress(self, title: str = "Generating", total: int = 0):
+        """
+        Show progress indicator.
+
+        Args:
+            title: Title to display
+            total: Total count (0 for indeterminate)
+        """
+        self.empty_state.setVisible(False)
+        self.table.setVisible(False)
+
+        if total > 0:
+            self.progress_card.start_progress(title, total)
+        else:
+            self.progress_card.show_indeterminate(title)
+            # Also show legacy progress bar for backwards compatibility
+            self.progress_bar.setVisible(True)
+            self.progress_bar.start()
+
+    def update_progress(self, current: int, status_text: str = None):
+        """
+        Update progress display.
+
+        Args:
+            current: Current progress count
+            status_text: Optional status text
+        """
+        self.progress_card.update_progress(current, status_text)
 
     def hide_progress(self):
-        """Hide progress bar."""
+        """Hide progress indicators."""
         self.progress_bar.stop()
         self.progress_bar.setVisible(False)
+        self.progress_card.hide_progress()
+
+        # Show table or empty state based on drafts
+        has_drafts = self.table.rowCount() > 0
+        self.table.setVisible(has_drafts)
+        self.empty_state.setVisible(not has_drafts)

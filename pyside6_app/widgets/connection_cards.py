@@ -11,7 +11,7 @@ from qfluentwidgets import (
     ElevatedCardWidget, LineEdit, PasswordLineEdit,
     PushButton, PrimaryPushButton, TransparentToolButton,
     SubtitleLabel, CaptionLabel, InfoBadge, InfoLevel,
-    FluentIcon
+    FluentIcon, isDarkTheme
 )
 
 from ..state.store import StateStore
@@ -59,8 +59,10 @@ class MicrosoftCard(ElevatedCardWidget):
         client_id_row = QHBoxLayout()
         self.client_id_input = PasswordLineEdit()
         self.client_id_input.setPlaceholderText("Enter Client ID (GUID)")
+        self.client_id_input.setToolTip("Azure AD Application (Client) ID - Found in Azure Portal > App Registrations")
         self.client_id_toggle = TransparentToolButton(FluentIcon.VIEW)
         self.client_id_toggle.setFixedSize(32, 32)
+        self.client_id_toggle.setToolTip("Show/hide Client ID")
         client_id_row.addWidget(self.client_id_input)
         client_id_row.addWidget(self.client_id_toggle)
         form_layout.addRow(CaptionLabel("Client ID:"), client_id_row)
@@ -68,24 +70,29 @@ class MicrosoftCard(ElevatedCardWidget):
         # Tenant ID
         self.tenant_id_input = LineEdit()
         self.tenant_id_input.setPlaceholderText("Enter Tenant ID (GUID)")
+        self.tenant_id_input.setToolTip("Azure AD Directory (Tenant) ID - Found in Azure Portal > Overview")
         form_layout.addRow(CaptionLabel("Tenant ID:"), self.tenant_id_input)
 
         # Sender Email
         self.sender_email_input = LineEdit()
         self.sender_email_input.setPlaceholderText("sender@example.com")
+        self.sender_email_input.setToolTip("Email address to send test tickets from (must have Mail.Send permission)")
         form_layout.addRow(CaptionLabel("Sender:"), self.sender_email_input)
 
         # Recipient Email
         self.recipient_email_input = LineEdit()
         self.recipient_email_input.setPlaceholderText("recipient@example.com")
+        self.recipient_email_input.setToolTip("Freshservice inbox email that creates tickets")
         form_layout.addRow(CaptionLabel("Recipient:"), self.recipient_email_input)
 
         # Claude API Key
         claude_key_row = QHBoxLayout()
         self.claude_key_input = PasswordLineEdit()
         self.claude_key_input.setPlaceholderText("sk-ant-...")
+        self.claude_key_input.setToolTip("Anthropic API key starting with 'sk-ant-' - Get one at console.anthropic.com")
         self.claude_key_toggle = TransparentToolButton(FluentIcon.VIEW)
         self.claude_key_toggle.setFixedSize(32, 32)
+        self.claude_key_toggle.setToolTip("Show/hide API key")
         claude_key_row.addWidget(self.claude_key_input)
         claude_key_row.addWidget(self.claude_key_toggle)
         form_layout.addRow(CaptionLabel("Claude Key:"), claude_key_row)
@@ -96,6 +103,7 @@ class MicrosoftCard(ElevatedCardWidget):
         auth_row = QHBoxLayout()
         self.auth_button = PrimaryPushButton("Authenticate")
         self.auth_button.setFixedHeight(36)
+        self.auth_button.setToolTip("Open Microsoft OAuth flow in browser")
         auth_row.addWidget(self.auth_button)
 
         self.auth_status_badge = InfoBadge.error("Not Connected", self)
@@ -244,6 +252,37 @@ class MicrosoftCard(ElevatedCardWidget):
     def _on_state_changed(self, connections):
         """Handle state changes."""
         self._update_auth_status()
+        self._update_card_border()
+
+    def _update_card_border(self):
+        """Update card border based on connection state."""
+        ms = self.state_store.state.connections.microsoft
+
+        if ms.is_authenticated:
+            color = "#27ae60" if not isDarkTheme() else "#58d68d"  # Green
+        else:
+            color = "transparent"
+
+        self.setStyleSheet(f"""
+            MicrosoftCard {{
+                border-left: 3px solid {color};
+            }}
+        """)
+
+    def set_accessibility_names(self):
+        """Set accessibility names for screen readers."""
+        self.client_id_input.setAccessibleName("Microsoft Client ID")
+        self.client_id_input.setAccessibleDescription("Enter your Azure AD Application Client ID in GUID format")
+        self.tenant_id_input.setAccessibleName("Microsoft Tenant ID")
+        self.tenant_id_input.setAccessibleDescription("Enter your Azure AD Directory Tenant ID in GUID format")
+        self.sender_email_input.setAccessibleName("Sender email address")
+        self.sender_email_input.setAccessibleDescription("Email address to send test tickets from")
+        self.recipient_email_input.setAccessibleName("Recipient email address")
+        self.recipient_email_input.setAccessibleDescription("Freshservice inbox email that creates tickets")
+        self.claude_key_input.setAccessibleName("Claude API key")
+        self.claude_key_input.setAccessibleDescription("Anthropic API key for content generation")
+        self.auth_button.setAccessibleName("Authenticate with Microsoft")
+        self.auth_button.setAccessibleDescription("Opens browser for Microsoft OAuth login")
 
 
 class FreshserviceCard(ElevatedCardWidget):
@@ -286,14 +325,17 @@ class FreshserviceCard(ElevatedCardWidget):
         # Domain
         self.domain_input = LineEdit()
         self.domain_input.setPlaceholderText("yourcompany.freshservice.com")
+        self.domain_input.setToolTip("Your Freshservice subdomain (e.g., yourcompany.freshservice.com)")
         form_layout.addRow(CaptionLabel("Domain:"), self.domain_input)
 
         # API Key
         api_key_row = QHBoxLayout()
         self.api_key_input = PasswordLineEdit()
         self.api_key_input.setPlaceholderText("Enter API Key")
+        self.api_key_input.setToolTip("Freshservice API key - Found in Profile Settings > API")
         self.api_key_toggle = TransparentToolButton(FluentIcon.VIEW)
         self.api_key_toggle.setFixedSize(32, 32)
+        self.api_key_toggle.setToolTip("Show/hide API key")
         api_key_row.addWidget(self.api_key_input)
         api_key_row.addWidget(self.api_key_toggle)
         form_layout.addRow(CaptionLabel("API Key:"), api_key_row)
@@ -304,6 +346,7 @@ class FreshserviceCard(ElevatedCardWidget):
         test_row = QHBoxLayout()
         self.test_button = PushButton("Test Connection")
         self.test_button.setFixedHeight(36)
+        self.test_button.setToolTip("Verify Freshservice connection and permissions")
         test_row.addWidget(self.test_button)
 
         self.status_badge = InfoBadge.attension("Not Configured", self)
@@ -397,3 +440,30 @@ class FreshserviceCard(ElevatedCardWidget):
     def _on_state_changed(self, connections):
         """Handle state changes."""
         self._update_status()
+        self._update_card_border()
+
+    def _update_card_border(self):
+        """Update card border based on connection state."""
+        fs = self.state_store.state.connections.freshservice
+
+        if fs.is_connected:
+            color = "#27ae60" if not isDarkTheme() else "#58d68d"  # Green
+        elif fs.domain and fs.api_key_last_four:
+            color = "#f39c12" if not isDarkTheme() else "#f8c471"  # Orange - not tested
+        else:
+            color = "transparent"
+
+        self.setStyleSheet(f"""
+            FreshserviceCard {{
+                border-left: 3px solid {color};
+            }}
+        """)
+
+    def set_accessibility_names(self):
+        """Set accessibility names for screen readers."""
+        self.domain_input.setAccessibleName("Freshservice domain")
+        self.domain_input.setAccessibleDescription("Your Freshservice subdomain in format yourcompany.freshservice.com")
+        self.api_key_input.setAccessibleName("Freshservice API key")
+        self.api_key_input.setAccessibleDescription("API key from Freshservice Profile Settings")
+        self.test_button.setAccessibleName("Test Freshservice connection")
+        self.test_button.setAccessibleDescription("Verify connection to Freshservice API")

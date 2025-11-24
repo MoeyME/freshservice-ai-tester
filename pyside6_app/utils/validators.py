@@ -121,3 +121,57 @@ class GUIDValidator:
             return False, "Invalid GUID format (expected: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
 
         return True, ""
+
+
+class APIKeyValidator:
+    """API key validators for various services."""
+
+    # Claude API key pattern (starts with sk-ant-)
+    CLAUDE_PATTERN = re.compile(r'^sk-ant-[a-zA-Z0-9_-]{20,}$')
+
+    # Freshservice API key pattern (typically alphanumeric)
+    FRESHSERVICE_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,}$')
+
+    @classmethod
+    def validate_claude(cls, key: str) -> Tuple[bool, str]:
+        """
+        Validate Claude API key format.
+
+        Args:
+            key: API key to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not key:
+            return False, "Claude API key is required"
+
+        if not key.startswith("sk-ant-"):
+            return False, "Claude API key must start with 'sk-ant-'"
+
+        if len(key) < 30:
+            return False, "API key appears too short"
+
+        if not cls.CLAUDE_PATTERN.match(key):
+            return False, "Invalid API key format"
+
+        return True, ""
+
+    @classmethod
+    def validate_freshservice(cls, key: str) -> Tuple[bool, str]:
+        """
+        Validate Freshservice API key format.
+
+        Args:
+            key: API key to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not key:
+            return False, "Freshservice API key is required"
+
+        if len(key) < 20:
+            return False, "API key appears too short"
+
+        return True, ""

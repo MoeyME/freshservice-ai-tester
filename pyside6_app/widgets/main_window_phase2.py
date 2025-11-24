@@ -3,7 +3,7 @@ Main application window with frameless design and 12-column grid layout - Phase 
 Complete with generation and review cards integrated.
 """
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout,
     QScrollArea, QSpacerItem, QSizePolicy, QFileDialog, QMenuBar, QMenu, QApplication
@@ -23,6 +23,9 @@ from .generation_card import GenerationCard
 from .review_card import ReviewCard
 from .review_sheet import ReviewDetailSheet
 from .activity_log import ActivityLogWidget
+from .error_banner import ErrorBanner
+from .onboarding_dialog import OnboardingDialog
+from ..utils.shortcuts import setup_shortcuts
 
 
 class MainWindow(QMainWindow):
@@ -109,6 +112,58 @@ class MainWindow(QMainWindow):
         self.review_sheet.setParent(central_widget)
         self.review_sheet.raise_()
 
+        # Setup keyboard shortcuts
+        self._setup_shortcuts()
+
+        # Show onboarding on first run
+        if not self.state_store.state.first_run_complete:
+            QTimer.singleShot(500, self._show_onboarding)
+
+        # Verify authentication status on startup
+        QTimer.singleShot(1000, self._verify_authentication_status)
+
+    def _verify_authentication_status(self):
+        """Verify Microsoft authentication status on startup."""
+        from ..services.auth import MicrosoftAuthService
+
+        ms = self.state_store.state.connections.microsoft
+
+        # Only check if state says we're authenticated
+        if ms.is_authenticated and ms.client_id and ms.tenant_id:
+            self.activity_log.add_info("Verifying Microsoft authentication...")
+
+            try:
+                auth_service = MicrosoftAuthService(ms.client_id, ms.tenant_id)
+
+                # Try to get token silently
+                token = auth_service.try_silent_auth()
+
+                if token:
+                    # Token is valid, update the stored token
+                    self.state_store.set_secret('microsoft_access_token', token['access_token'])
+                    self.activity_log.add_success("Microsoft authentication verified (using cached token)")
+                else:
+                    # Token is invalid/expired and can't be refreshed
+                    self.state_store.update_connections(
+                        lambda s: setattr(s.connections.microsoft, 'is_authenticated', False)
+                    )
+                    self.activity_log.add_warning("Microsoft authentication expired - please re-authenticate")
+
+                    InfoBar.warning(
+                        title="Authentication Expired",
+                        content="Your Microsoft session has expired. Please authenticate again.",
+                        parent=self,
+                        duration=5000,
+                        position=InfoBarPosition.TOP_RIGHT
+                    )
+
+            except Exception as e:
+                # On error, mark as not authenticated
+                self.state_store.update_connections(
+                    lambda s: setattr(s.connections.microsoft, 'is_authenticated', False)
+                )
+                self.activity_log.add_error(f"Authentication check failed: {str(e)}")
+
     def _create_title_bar(self):
         """Create menu bar with theme toggle and settings."""
         menubar = self.menuBar()
@@ -169,6 +224,12 @@ class MainWindow(QMainWindow):
         center_layout = QVBoxLayout(center_widget)
         center_layout.setSpacing(16)
         center_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Error banner (hidden by default)
+        self.error_banner = ErrorBanner()
+        self.error_banner.retry_clicked.connect(self._on_error_retry)
+        self.error_banner.dismiss_clicked.connect(self._on_error_dismiss)
+        center_layout.addWidget(self.error_banner)
 
         # Generation card
         self.generation_card = GenerationCard(self.state_store, self)
@@ -231,6 +292,7 @@ class MainWindow(QMainWindow):
         self.confirm_send_button = PushButton("Confirm & Send")
         self.confirm_send_button.setEnabled(False)
         self.confirm_send_button.setMinimumWidth(100)  # Allow shrinking but set minimum
+        self.confirm_send_button.setToolTip("Send all 'Ready' emails via Microsoft Graph API (Ctrl+Return)")
         footer_layout.addWidget(self.confirm_send_button)
 
         # Verify Tickets button (disabled by default)
@@ -238,6 +300,7 @@ class MainWindow(QMainWindow):
         self.verify_button.setIcon(FluentIcon.SEARCH)
         self.verify_button.setEnabled(False)
         self.verify_button.setMinimumWidth(100)  # Allow shrinking but set minimum
+        self.verify_button.setToolTip("Check if sent emails created Freshservice tickets")
         footer_layout.addWidget(self.verify_button)
 
         layout.addWidget(footer, 2, 0, 1, 12)
@@ -268,6 +331,8 @@ class MainWindow(QMainWindow):
         self.review_card.select_all_clicked.connect(self.review_card.select_all_rows)
         self.review_card.select_none_clicked.connect(self.review_card.clear_selection)
         self.review_card.mark_ready_clicked.connect(self._on_mark_ready)
+        self.review_card.preview_clicked.connect(self._on_preview_clicked)
+        self.review_card.cancel_generation.connect(self._on_cancel_generation)
 
         # Generator service signals
         self.generator_service.draft_generated.connect(self._on_draft_generated)
@@ -283,6 +348,58 @@ class MainWindow(QMainWindow):
 
         # Verify tickets button
         self.verify_button.clicked.connect(self._on_verify_tickets)
+
+    def _setup_shortcuts(self):
+        """Setup keyboard shortcuts."""
+        self._shortcuts = setup_shortcuts(self, {
+            'generate': self._on_generate_clicked,
+            'preview': self._on_preview_clicked,
+            'send': self._on_confirm_send,
+            'export': self._on_export_csv,
+            'select_all': self.review_card.select_all_rows,
+            'clear_selection': self._clear_selection_or_close_sheet,
+            'toggle_theme': self._on_theme_toggle,
+        })
+
+    def _clear_selection_or_close_sheet(self):
+        """Handle Escape - close sheet if open, otherwise clear selection."""
+        if self.review_sheet.isVisible():
+            self.review_sheet.hide()
+        else:
+            self.review_card.clear_selection()
+
+    def _show_onboarding(self):
+        """Show first-run onboarding wizard."""
+        dialog = OnboardingDialog(self)
+        dialog.exec()
+
+        # Mark onboarding complete
+        self.state_store.state.first_run_complete = True
+        self.state_store.save()
+
+    def _on_error_retry(self):
+        """Handle error banner retry button."""
+        self.error_banner.hide_banner()
+        # Retry the last generation
+        self._on_generate_clicked()
+
+    def _on_error_dismiss(self):
+        """Handle error banner dismiss button."""
+        self.error_banner.hide_banner()
+
+    def _on_cancel_generation(self):
+        """Handle cancel generation request from review card."""
+        result = MessageBox(
+            "Cancel Generation",
+            "Stop generating? Emails already generated will be kept.",
+            self
+        ).exec()
+
+        if result:
+            self.generator_service.cancel_generation()
+            self.activity_log.add_warning("Generation cancelled by user")
+            self.review_card.hide_progress()
+            self.generation_card.set_generation_enabled(True)
 
     # Event handlers
     def _on_theme_toggle(self):
@@ -319,12 +436,22 @@ class MainWindow(QMainWindow):
             ).exec()
 
             if result:
+                # Clear token cache
+                try:
+                    auth_service = MicrosoftAuthService(ms.client_id, ms.tenant_id)
+                    auth_service.sign_out()
+                except Exception as e:
+                    print(f"[WARNING] Error clearing token cache: {e}")
+
                 self.state_store.update_connections(
                     lambda s: setattr(s.connections.microsoft, 'is_authenticated', False)
                 )
                 self.state_store.update_connections(
                     lambda s: setattr(s.connections.microsoft, 'token_expiry', None)
                 )
+
+                # Clear the stored access token
+                self.state_store.set_secret('microsoft_access_token', '')
 
                 self.activity_log.add_success("Signed out from Microsoft 365")
 
@@ -486,9 +613,12 @@ class MainWindow(QMainWindow):
         self.state_store.update_drafts(lambda s: s.clear_drafts())
         self.review_card.clear_table()
 
+        # Hide any error banner
+        self.error_banner.hide_banner()
+
         # Disable generation controls
         self.generation_card.set_generation_enabled(False)
-        self.review_card.show_progress()
+        self.review_card.show_progress("Generating Emails", settings['email_count'])
         self.last_action_label.setText("Last: Generating drafts...")
 
         # Start generation
@@ -992,6 +1122,8 @@ class MainWindow(QMainWindow):
         """Handle progress update."""
         self.last_action_label.setText(f"Last: Generating {current}/{total}...")
         self.activity_log.set_status(f"Generating {current}/{total}...", "busy")
+        # Update enhanced progress card
+        self.review_card.update_progress(current, f"Generated {current} of {total} emails")
 
     def _on_generation_complete(self):
         """Handle generation complete."""
@@ -1021,7 +1153,11 @@ class MainWindow(QMainWindow):
         self.activity_log.add_error(f"Generation failed: {error_message}")
         self.activity_log.set_status("Ready", "success")
 
-        self._show_error(error_message)
+        # Show error banner with retry option instead of blocking dialog
+        self.error_banner.show_error(
+            f"Generation failed: {error_message}",
+            retryable=True
+        )
 
     def _on_drafts_changed(self, drafts):
         """Handle drafts list change."""

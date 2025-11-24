@@ -194,6 +194,7 @@ class AppState(BaseModel):
 
     version: str = "2.0.0"
     last_modified: datetime = Field(default_factory=datetime.now)
+    first_run_complete: bool = False  # Set to True after onboarding
     ui: UIState = Field(default_factory=UIState)
     connections: ConnectionsState = Field(default_factory=ConnectionsState)
     generation: GenerationSettings = Field(default_factory=GenerationSettings)

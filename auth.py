@@ -8,6 +8,8 @@ import msal
 import requests
 import urllib3
 import os
+import json
+from pathlib import Path
 
 # Disable SSL warnings for corporate networks with self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -24,6 +26,17 @@ def _patched_request(self, *args, **kwargs):
     kwargs['verify'] = False  # Force disable, not just default
     return _original_request(self, *args, **kwargs)
 requests.Session.request = _patched_request
+
+
+def get_token_cache_path() -> Path:
+    """Get the path for the MSAL token cache file."""
+    appdata = os.getenv('APPDATA')
+    if appdata:
+        cache_dir = Path(appdata) / "ITTicketEmailGenerator"
+    else:
+        cache_dir = Path.home() / ".itticketemailgenerator"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / "msal_token_cache.json"
 
 
 class GraphAuthenticator:
@@ -50,6 +63,89 @@ class GraphAuthenticator:
         self.app = None
         self.access_token = None
 
+        # Initialize token cache for persistent authentication
+        self._cache = msal.SerializableTokenCache()
+        self._cache_path = get_token_cache_path()
+        self._load_cache()
+
+    def _load_cache(self) -> None:
+        """Load token cache from disk."""
+        try:
+            if self._cache_path.exists():
+                with open(self._cache_path, 'r', encoding='utf-8') as f:
+                    self._cache.deserialize(f.read())
+        except Exception as e:
+            print(f"[WARNING] Failed to load token cache: {e}")
+
+    def _save_cache(self) -> None:
+        """Save token cache to disk."""
+        try:
+            if self._cache.has_state_changed:
+                with open(self._cache_path, 'w', encoding='utf-8') as f:
+                    f.write(self._cache.serialize())
+        except Exception as e:
+            print(f"[WARNING] Failed to save token cache: {e}")
+
+    def _get_app(self) -> msal.PublicClientApplication:
+        """Get or create the MSAL PublicClientApplication."""
+        if self.app is None:
+            import requests
+            http_client = requests.Session()
+            http_client.verify = False
+
+            self.app = msal.PublicClientApplication(
+                client_id=self.client_id,
+                authority=self.authority,
+                http_client=http_client,
+                token_cache=self._cache
+            )
+        return self.app
+
+    def try_get_token_silent(self) -> Optional[str]:
+        """
+        Try to acquire a token silently from the cache.
+        This uses refresh tokens to get new access tokens without user interaction.
+
+        Returns:
+            Access token if available in cache and valid/refreshable, None otherwise
+        """
+        app = self._get_app()
+
+        # Get accounts from cache
+        accounts = app.get_accounts()
+        if not accounts:
+            return None
+
+        # Try to get token silently for the first account
+        # MSAL will automatically refresh if the access token is expired
+        # but the refresh token is still valid (typically 90 days)
+        result = app.acquire_token_silent(self.SCOPES, account=accounts[0])
+
+        if result and "access_token" in result:
+            self.access_token = result["access_token"]
+            self._save_cache()
+            return self.access_token
+
+        return None
+
+    def is_authenticated(self) -> bool:
+        """
+        Check if there's a valid (or refreshable) token in the cache.
+
+        Returns:
+            True if authentication is possible without user interaction
+        """
+        return self.try_get_token_silent() is not None
+
+    def sign_out(self) -> None:
+        """Sign out by clearing the token cache."""
+        app = self._get_app()
+        accounts = app.get_accounts()
+        for account in accounts:
+            app.remove_account(account)
+        self._save_cache()
+        self.access_token = None
+
     def authenticate_device_flow(self) -> str:
         """
         Authenticate using device code flow (interactive, no client secret needed).
@@ -61,21 +157,17 @@ class GraphAuthenticator:
         Raises:
             Exception: If authentication fails
         """
-        # Create custom HTTP client that disables SSL verification
-        # This is needed for corporate networks with self-signed certificates
-        import requests
-        http_client = requests.Session()
-        http_client.verify = False
+        # First try to get token silently from cache
+        silent_token = self.try_get_token_silent()
+        if silent_token:
+            print("[OK] Using cached authentication (token refreshed silently)")
+            return silent_token
 
-        # Create a public client application with custom HTTP client
-        self.app = msal.PublicClientApplication(
-            client_id=self.client_id,
-            authority=self.authority,
-            http_client=http_client
-        )
+        # Get the MSAL app (creates if needed, uses cache)
+        app = self._get_app()
 
         # Initiate device flow
-        flow = self.app.initiate_device_flow(scopes=self.SCOPES)
+        flow = app.initiate_device_flow(scopes=self.SCOPES)
 
         if "user_code" not in flow:
             raise Exception(
@@ -93,7 +185,7 @@ class GraphAuthenticator:
         # The device flow will poll until user authenticates or timeout (default ~15 min)
         print("[INFO] Waiting for authentication... (polling every 5 seconds)")
         try:
-            result = self.app.acquire_token_by_device_flow(flow)
+            result = app.acquire_token_by_device_flow(flow)
         except KeyboardInterrupt:
             print("\n[CANCELLED] Authentication cancelled by user.")
             raise Exception("Authentication cancelled by user")
@@ -104,6 +196,7 @@ class GraphAuthenticator:
         # Check if authentication succeeded
         if "access_token" in result:
             self.access_token = result["access_token"]
+            self._save_cache()  # Persist token cache to disk
             print("[OK] Authentication successful!\n")
             return self.access_token
         else:
