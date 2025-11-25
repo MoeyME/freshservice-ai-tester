@@ -87,7 +87,15 @@ class GeneratorWorker(QRunnable):
                     self.types
                 )
             else:
-                # For custom mode, create dummy distribution
+                # For custom mode, parse the custom prompt to get individual scenarios
+                # Each non-empty line is treated as a separate scenario
+                custom_lines = [line.strip() for line in custom_prompt.strip().split('\n') if line.strip()]
+
+                # Use the minimum of requested email_count and number of custom lines
+                # This prevents generating more emails than scenarios provided
+                actual_count = min(email_count, len(custom_lines)) if custom_lines else email_count
+
+                # Create distribution based on actual count
                 distribution = [
                     {
                         "category": "Custom",
@@ -96,8 +104,11 @@ class GeneratorWorker(QRunnable):
                         "priority": "Priority 3",
                         "type": "Incident"
                     }
-                    for _ in range(email_count)
+                    for _ in range(actual_count)
                 ]
+
+                # Update email_count to match actual distribution
+                email_count = actual_count
 
             # Generate emails
             for i, item in enumerate(distribution):
